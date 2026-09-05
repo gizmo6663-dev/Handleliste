@@ -25,6 +25,21 @@ interface WidgetSuggestion {
   suggestAt: number;
 }
 
+interface WidgetCategory {
+  id: string;
+  icon: string;
+  name: string;
+}
+
+interface WidgetCatalogItem {
+  itemId: string;
+  icon: string;
+  name: string;
+  categoryId: string;
+  /** Ligger allerede på lista, og skal derfor ikke kunne legges til igjen. */
+  onList: boolean;
+}
+
 /** Et trykk gjort i en widget, som venter på å bli utført av appen. */
 export interface WidgetOp {
   id: string;
@@ -39,6 +54,8 @@ interface HandlelistePlugin {
     list: WidgetRow[];
     suggestions: WidgetSuggestion[];
     remaining: number;
+    categories: WidgetCategory[];
+    catalog: WidgetCatalogItem[];
   }): Promise<void>;
   takePendingOps(): Promise<{ ops: WidgetOp[] }>;
 }
@@ -110,10 +127,33 @@ export function buildWidgetSnapshot(state: AppState) {
     .filter((row): row is WidgetSuggestion => row !== null)
     .slice(0, MAX_SUGGESTIONS);
 
+  // Katalogen: alt appen kjenner, så man kan plukke kjente varer fra
+  // widgeten uten å skrive. Mest kjøpte først innenfor hver kategori.
+  const catalog: WidgetCatalogItem[] = state.items
+    .filter((item) => !item.archived)
+    .sort((a, b) => b.purchases - a.purchases || a.name.localeCompare(b.name, 'nb'))
+    .map((item) => ({
+      itemId: item.id,
+      icon: category(item.category).icon,
+      name: item.name,
+      categoryId: item.category,
+      onList: inList.has(item.id),
+    }));
+
+  // Kategoriene i butikkens rekkefølge; widgeten teller selv hvor mange
+  // varer hver av dem har igjen å tilby.
+  const categories: WidgetCategory[] = state.settings.categoryOrder.map((id) => ({
+    id,
+    icon: category(id).icon,
+    name: category(id).name,
+  }));
+
   return {
     list,
     suggestions,
     remaining: rows.filter(({ entry }) => !entry.checked).length,
+    categories,
+    catalog,
   };
 }
 

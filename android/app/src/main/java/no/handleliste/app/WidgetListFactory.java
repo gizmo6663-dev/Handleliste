@@ -1,5 +1,6 @@
 package no.handleliste.app;
 
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
 import android.text.SpannableString;
@@ -7,31 +8,45 @@ import android.text.style.StrikethroughSpan;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
+import androidx.core.content.ContextCompat;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Fyller listene i widgetene. Brukes av begge: handlelista viser en
- * avkryssingsrad per vare, påfyll-widgeten viser forslagene med en pluss-knapp.
+ * Fyller innholdet i widgetene.
  *
- * En rullbar liste i en widget må gå gjennom en tjeneste som denne — det er
- * også det som gjør at widgeten kan endre størrelse uten at innhold forsvinner.
+ * Handleliste-widgeten har tre sider — lista, kategorioversikten og varene i
+ * én kategori — og fabrikken slår opp hvilken den skal fylle. Påfyll-widgeten
+ * har bare én.
+ *
+ * Rullbart innhold i en widget må gå gjennom en tjeneste som denne; det er
+ * også det som gjør at widgeten kan endre størrelse uten at noe forsvinner.
  */
 class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
 
-    /** Hvilken av de to widgetene fabrikken jobber for. */
-    enum Kind {
-        LISTE,
-        PAFYLL
-    }
+    /** De fire innholdstypene, som hver har sin egen radutforming. */
+    private static final int TYPE_LIST = 0;
+    private static final int TYPE_CATEGORY = 1;
+    private static final int TYPE_ITEM = 2;
+    private static final int TYPE_SUGGESTION = 3;
 
     private final Context context;
-    private final Kind kind;
-    private JSONArray rows = new JSONArray();
+    private final int widgetId;
+    private final boolean refillWidget;
+    /** Siden denne fabrikken ble laget for; én fabrikk per side. */
+    private final String page;
 
-    WidgetListFactory(Context context, Kind kind) {
+    private JSONArray rows = new JSONArray();
+    private int type = TYPE_LIST;
+
+    WidgetListFactory(Context context, Intent intent, boolean refillWidget) {
         this.context = context;
-        this.kind = kind;
+        this.refillWidget = refillWidget;
+        this.widgetId = intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+        String requested = intent.getStringExtra(WidgetActions.EXTRA_PAGE);
+        this.page = requested != null ? requested : WidgetState.PAGE_LIST;
     }
 
     @Override
@@ -42,13 +57,29 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
     @Override
     public void onDataSetChanged() {
         JSONObject snapshot = WidgetStore.snapshot(context);
-        if (kind == Kind.LISTE) {
-            JSONArray found = snapshot.optJSONArray("list");
-            rows = found != null ? found : new JSONArray();
-        } else {
+
+        if (refillWidget) {
+            type = TYPE_SUGGESTION;
             rows = dueSuggestions(snapshot);
+            return;
+        }
+
+        if (WidgetState.PAGE_CATEGORIES.equals(page)) {
+            type = TYPE_CATEGORY;
+            rows = categories(snapshot);
+        } else if (WidgetState.PAGE_ITEMS.equals(page)) {
+            type = TYPE_ITEM;
+            rows = itemsIn(snapshot, WidgetState.category(context, widgetId));
+        } else {
+            type = TYPE_LIST;
+            JSONArray list = snapshot.optJSONArray("list");
+            rows = list != null ? list : new JSONArray();
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Utvalgene widgetene viser
+    // -----------------------------------------------------------------------
 
     /**
      * Forslagene appen sendte, begrenset til dem som har forfalt nå.
@@ -73,23 +104,85 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
         return due;
     }
 
-    @Override
-    public void onDestroy() {
-        rows = new JSONArray();
+    /** Kategoriene som har varer å legge til, med antall. */
+    static JSONArray categories(JSONObject snapshot) {
+        JSONArray order = snapshot.optJSONArray("categories");
+        JSONArray catalog = snapshot.optJSONArray("catalog");
+        JSONArray result = new JSONArray();
+        if (order == null || catalog == null) {
+            return result;
+        }
+
+        for (int i = 0; i < order.length(); i++) {
+            JSONObject category = order.optJSONObject(i);
+            if (category == null) {
+                continue;
+            }
+            String id = category.optString("id");
+            int count = 0;
+            for (int j = 0; j < catalog.length(); j++) {
+                JSONObject item = catalog.optJSONObject(j);
+                if (item != null
+                        && id.equals(item.optString("categoryId"))
+                        && !item.optBoolean("onList", false)) {
+                    count++;
+                }
+            }
+            if (count == 0) {
+                continue;
+            }
+            JSONObject row = new JSONObject();
+            try {
+                row.put("id", id);
+                row.put("icon", category.optString("icon"));
+                row.put("name", category.optString("name"));
+                row.put("count", count);
+            } catch (org.json.JSONException ignored) {
+                continue;
+            }
+            result.put(row);
+        }
+        return result;
     }
 
-    @Override
-    public int getCount() {
-        return rows.length();
+    /** Varene i én kategori som ikke allerede ligger på lista. */
+    static JSONArray itemsIn(JSONObject snapshot, String categoryId) {
+        JSONArray catalog = snapshot.optJSONArray("catalog");
+        JSONArray result = new JSONArray();
+        if (catalog == null || categoryId == null || categoryId.isEmpty()) {
+            return result;
+        }
+        for (int i = 0; i < catalog.length(); i++) {
+            JSONObject item = catalog.optJSONObject(i);
+            if (item != null
+                    && categoryId.equals(item.optString("categoryId"))
+                    && !item.optBoolean("onList", false)) {
+                result.put(item);
+            }
+        }
+        return result;
     }
+
+    // -----------------------------------------------------------------------
+    // Radene
+    // -----------------------------------------------------------------------
 
     @Override
     public RemoteViews getViewAt(int position) {
         JSONObject row = rows.optJSONObject(position);
         if (row == null) {
-            return loadingView();
+            return new RemoteViews(context.getPackageName(), R.layout.widget_row_item);
         }
-        return kind == Kind.LISTE ? listRow(row) : refillRow(row);
+        switch (type) {
+            case TYPE_CATEGORY:
+                return categoryTile(row);
+            case TYPE_ITEM:
+                return itemRow(row);
+            case TYPE_SUGGESTION:
+                return suggestionRow(row);
+            default:
+                return listRow(row);
+        }
     }
 
     private RemoteViews listRow(JSONObject row) {
@@ -120,7 +213,31 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
         return views;
     }
 
-    private RemoteViews refillRow(JSONObject row) {
+    private RemoteViews categoryTile(JSONObject row) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_tile_category);
+        views.setTextViewText(R.id.row_icon, row.optString("icon"));
+        views.setTextViewText(R.id.row_name, row.optString("name"));
+        views.setTextViewText(R.id.row_count, String.valueOf(row.optInt("count")));
+
+        Intent fillIn = new Intent();
+        fillIn.putExtra(WidgetActions.EXTRA_PAGE, WidgetState.PAGE_ITEMS);
+        fillIn.putExtra(WidgetActions.EXTRA_CATEGORY_ID, row.optString("id"));
+        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+        return views;
+    }
+
+    private RemoteViews itemRow(JSONObject row) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_row_item);
+        views.setTextViewText(R.id.row_icon, row.optString("icon"));
+        views.setTextViewText(R.id.row_name, row.optString("name"));
+
+        Intent fillIn = new Intent();
+        fillIn.putExtra(WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
+        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+        return views;
+    }
+
+    private RemoteViews suggestionRow(JSONObject row) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_row_refill);
         views.setTextViewText(R.id.row_icon, row.optString("icon"));
         views.setTextViewText(R.id.row_name, row.optString("name"));
@@ -133,11 +250,19 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
     }
 
     private int color(int resource) {
-        return androidx.core.content.ContextCompat.getColor(context, resource);
+        return ContextCompat.getColor(context, resource);
     }
 
-    private RemoteViews loadingView() {
-        return new RemoteViews(context.getPackageName(), R.layout.widget_row_list);
+    // -----------------------------------------------------------------------
+
+    @Override
+    public void onDestroy() {
+        rows = new JSONArray();
+    }
+
+    @Override
+    public int getCount() {
+        return rows.length();
     }
 
     @Override
@@ -147,7 +272,8 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
 
     @Override
     public int getViewTypeCount() {
-        return 1;
+        // Én per radutforming, siden samme fabrikk betjener alle sidene.
+        return 4;
     }
 
     @Override

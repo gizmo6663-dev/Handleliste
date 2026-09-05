@@ -9,4 +9,5 @@
     <color name="widgetMuted">#6C716C</color>
     <color name="widgetAccent">#1D6042</color>
     <color name="widgetButton">#E7F0EA</color>
+    <color name="widgetTile">#F2F4F1</color>
 </resources>

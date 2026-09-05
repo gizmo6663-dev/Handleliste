@@ -158,3 +158,66 @@ describe('forslagene widgeten får', () => {
     expect(buildWidgetSnapshot(getState()).suggestions).toHaveLength(0);
   });
 });
+
+describe('katalogen widgeten plukker fra', () => {
+  beforeEach(() => actions.resetAll());
+
+  it('tar med alt appen kjenner, med kategori', () => {
+    actions.addByText('melk');
+    actions.addByText('brokkoli');
+
+    const { catalog } = buildWidgetSnapshot(getState());
+    expect(catalog.map((row) => row.name).sort()).toEqual(['Brokkoli', 'Melk']);
+    expect(catalog.find((row) => row.name === 'Melk')!.categoryId).toBe('meieri');
+    expect(catalog.find((row) => row.name === 'Brokkoli')!.categoryId).toBe('frukt-gront');
+  });
+
+  it('markerer varer som allerede ligger på lista', () => {
+    actions.addByText('melk');
+    const itemId = getState().items[0]!.id;
+    expect(buildWidgetSnapshot(getState()).catalog[0]!.onList).toBe(true);
+
+    // Fullfør turen: varen er kjent, men ikke lenger på lista.
+    actions.toggleEntry(getState().list[0]!.id);
+    actions.completeTrip();
+
+    const row = buildWidgetSnapshot(getState()).catalog.find((r) => r.itemId === itemId)!;
+    expect(row.onList).toBe(false);
+  });
+
+  it('setter de mest kjøpte varene først', () => {
+    actions.addByText('melk');
+    actions.addByText('kaviar');
+    // Kjøp melk to ganger, kaviar én.
+    for (const entry of getState().list) actions.toggleEntry(entry.id);
+    actions.completeTrip();
+    actions.addByText('melk');
+    actions.toggleEntry(getState().list[0]!.id);
+    actions.completeTrip();
+
+    expect(buildWidgetSnapshot(getState()).catalog[0]!.name).toBe('Melk');
+  });
+
+  it('sender kategoriene i butikkens rekkefølge', () => {
+    const { categories } = buildWidgetSnapshot(getState());
+    expect(categories).toHaveLength(getState().settings.categoryOrder.length);
+    expect(categories[0]!.id).toBe(getState().settings.categoryOrder[0]);
+    expect(categories[0]!.name).toBe('Frukt & grønt');
+
+    const snudd = [...getState().settings.categoryOrder].reverse();
+    actions.updateSettings({ categoryOrder: snudd });
+    expect(buildWidgetSnapshot(getState()).categories[0]!.id).toBe(snudd[0]);
+  });
+
+  it('utelater arkiverte varer', () => {
+    actions.addByText('melk');
+    const itemId = getState().items[0]!.id;
+    actions.replaceState({
+      ...getState(),
+      items: getState().items.map((item) =>
+        item.id === itemId ? { ...item, archived: true } : item,
+      ),
+    });
+    expect(buildWidgetSnapshot(getState()).catalog).toHaveLength(0);
+  });
+});

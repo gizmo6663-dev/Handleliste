@@ -5,8 +5,12 @@
     <string name="package_name">no.handleliste.app</string>
     <string name="custom_url_scheme">no.handleliste.app</string>
 
-    <string name="widget_description">Handlelista, med avkryssing rett fra hjemskjermen</string>
+    <string name="widget_description">Handlelista, med avkryssing og påfyll rett fra hjemskjermen</string>
     <string name="widget_empty">Lista er tom. Trykk på pluss for å legge til noe.</string>
+    <string name="widget_pick_category">Legg til vare</string>
+    <string name="widget_no_known_items">Appen kjenner ingen varer ennå. Legg til noen i appen først, så dukker de opp her.</string>
+    <string name="widget_category_empty">Alt du har i denne kategorien ligger allerede på lista.</string>
+    <string name="widget_done">Ferdig</string>
 
     <string name="widget_refill_title">Snart tomt</string>
     <string name="widget_refill_description">Varer du trolig snart trenger påfyll av</string>

@@ -14,18 +14,22 @@ import org.json.JSONException;
 public class HandlelistePlugin extends Plugin {
 
     /**
-     * Tar imot en oppsummering av lista og forslagene, og oppdaterer
+     * Tar imot lista, forslagene og katalogen appen kjenner, og oppdaterer
      * widgetene. Kalles av websiden hver gang noe endrer seg.
      */
     @PluginMethod
     public void syncWidget(PluginCall call) {
         JSArray list = call.getArray("list");
         JSArray suggestions = call.getArray("suggestions");
+        JSArray categories = call.getArray("categories");
+        JSArray catalog = call.getArray("catalog");
         Integer remaining = call.getInt("remaining", 0);
 
         JSObject payload = new JSObject();
         payload.put("list", list != null ? list : new JSArray());
         payload.put("suggestions", suggestions != null ? suggestions : new JSArray());
+        payload.put("categories", categories != null ? categories : new JSArray());
+        payload.put("catalog", catalog != null ? catalog : new JSArray());
         payload.put("remaining", remaining != null ? remaining : 0);
 
         WidgetStore.saveSnapshot(getContext(), payload.toString());

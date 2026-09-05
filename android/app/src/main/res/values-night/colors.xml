@@ -7,4 +7,5 @@
     <color name="widgetMuted">#9AA2A0</color>
     <color name="widgetAccent">#6FD6A0</color>
     <color name="widgetButton">#20302A</color>
+    <color name="widgetTile">#222629</color>
 </resources>

@@ -31,6 +31,8 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="no.handleliste.app.TOGGLE" />
+                <action android:name="no.handleliste.app.ADD" />
+                <action android:name="no.handleliste.app.PAGE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

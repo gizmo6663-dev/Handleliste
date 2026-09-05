@@ -3,6 +3,7 @@ package no.handleliste.app;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,8 +22,12 @@ final class WidgetActions {
 
     static final String ACTION_TOGGLE = "no.handleliste.app.TOGGLE";
     static final String ACTION_ADD = "no.handleliste.app.ADD";
+    static final String ACTION_PAGE = "no.handleliste.app.PAGE";
+
     static final String EXTRA_ENTRY_ID = "entryId";
     static final String EXTRA_ITEM_ID = "itemId";
+    static final String EXTRA_PAGE = "side";
+    static final String EXTRA_CATEGORY_ID = "kategoriId";
 
     private WidgetActions() {}
 
@@ -38,32 +43,49 @@ final class WidgetActions {
             for (int i = 0; i < list.length(); i++) {
                 JSONObject row = list.optJSONObject(i);
                 if (row != null && entryId.equals(row.optString("entryId"))) {
-                    boolean checked = !row.optBoolean("checked", false);
-                    try {
-                        row.put("checked", checked);
-                    } catch (JSONException ignored) {
-                        // Feltet er alltid skrivbart; hoppes over i verste fall.
-                    }
+                    put(row, "checked", !row.optBoolean("checked", false));
                     break;
                 }
             }
-            writeBack(context, snapshot, list);
+            countAndSave(context, snapshot, list);
         }
 
         enqueue(context, "toggle", EXTRA_ENTRY_ID, entryId);
         refreshAll(context);
     }
 
-    /** Flytt en foreslått vare over på handlelista. */
+    /**
+     * Legger en kjent vare på lista — fra påfyll-widgeten eller fra en
+     * kategori. Varen forsvinner der den ble trykket og dukker opp på lista.
+     */
     static void add(Context context, String itemId) {
         if (itemId == null || itemId.isEmpty()) {
             return;
         }
 
         JSONObject snapshot = WidgetStore.snapshot(context);
-        JSONArray suggestions = snapshot.optJSONArray("suggestions");
         JSONArray list = snapshot.optJSONArray("list");
-        if (suggestions != null && list != null) {
+        String icon = "";
+        String name = "";
+
+        // Varen finnes i katalogen; merk den som lagt til, så forsvinner den
+        // fra kategorivisningen med én gang.
+        JSONArray catalog = snapshot.optJSONArray("catalog");
+        if (catalog != null) {
+            for (int i = 0; i < catalog.length(); i++) {
+                JSONObject row = catalog.optJSONObject(i);
+                if (row != null && itemId.equals(row.optString("itemId"))) {
+                    put(row, "onList", true);
+                    icon = row.optString("icon");
+                    name = row.optString("name");
+                    break;
+                }
+            }
+        }
+
+        // Den kan også ligge blant forslagene i påfyll-widgeten.
+        JSONArray suggestions = snapshot.optJSONArray("suggestions");
+        if (suggestions != null) {
             JSONArray remainingSuggestions = new JSONArray();
             for (int i = 0; i < suggestions.length(); i++) {
                 JSONObject row = suggestions.optJSONObject(i);
@@ -71,38 +93,58 @@ final class WidgetActions {
                     continue;
                 }
                 if (itemId.equals(row.optString("itemId"))) {
-                    // Varen vises på lista med det samme. Appen gir den en ekte
-                    // linje-id når den tømmer køen.
-                    JSONObject added = new JSONObject();
-                    try {
-                        added.put("entryId", "venter-" + itemId);
-                        added.put("itemId", itemId);
-                        added.put("icon", row.optString("icon"));
-                        added.put("name", row.optString("name"));
-                        added.put("qty", "");
-                        added.put("checked", false);
-                        list.put(added);
-                    } catch (JSONException ignored) {
-                        // Da står varen i køen og dukker opp når appen åpnes.
-                    }
+                    if (icon.isEmpty()) icon = row.optString("icon");
+                    if (name.isEmpty()) name = row.optString("name");
                 } else {
                     remainingSuggestions.put(row);
                 }
             }
-            try {
-                snapshot.put("suggestions", remainingSuggestions);
-            } catch (JSONException ignored) {
-                // Forslaget blir stående til appen skriver nytt snapshot.
-            }
-            writeBack(context, snapshot, list);
+            put(snapshot, "suggestions", remainingSuggestions);
+        }
+
+        if (list != null && !name.isEmpty() && !alreadyOnList(list, itemId)) {
+            JSONObject added = new JSONObject();
+            // Appen gir linja en ekte id når den tømmer køen.
+            put(added, "entryId", "venter-" + itemId);
+            put(added, "itemId", itemId);
+            put(added, "icon", icon);
+            put(added, "name", name);
+            put(added, "qty", "");
+            put(added, "checked", false);
+            list.put(added);
+        }
+        if (list != null) {
+            countAndSave(context, snapshot, list);
         }
 
         enqueue(context, "add", EXTRA_ITEM_ID, itemId);
         refreshAll(context);
     }
 
+    /** Bytter side i handleliste-widgeten. */
+    static void page(Context context, int widgetId, String page, String categoryId) {
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID || page == null) {
+            return;
+        }
+        WidgetState.setPage(context, widgetId, page, categoryId);
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        // Siden bytter layout, så hele widgeten må bygges på nytt.
+        manager.updateAppWidget(widgetId, HandlelisteWidget.build(context, widgetId));
+        manager.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_collection);
+    }
+
+    private static boolean alreadyOnList(JSONArray list, String itemId) {
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject row = list.optJSONObject(i);
+            if (row != null && itemId.equals(row.optString("itemId"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Teller opp hvor mange varer som gjenstår og lagrer snapshotet. */
-    private static void writeBack(Context context, JSONObject snapshot, JSONArray list) {
+    private static void countAndSave(Context context, JSONObject snapshot, JSONArray list) {
         int remaining = 0;
         for (int i = 0; i < list.length(); i++) {
             JSONObject row = list.optJSONObject(i);
@@ -110,13 +152,18 @@ final class WidgetActions {
                 remaining++;
             }
         }
+        put(snapshot, "list", list);
+        put(snapshot, "remaining", remaining);
+        WidgetStore.saveSnapshot(context, snapshot.toString());
+    }
+
+    /** JSON-skriving som ikke velter noe om et felt skulle være uskrivbart. */
+    private static void put(JSONObject target, String key, Object value) {
         try {
-            snapshot.put("list", list);
-            snapshot.put("remaining", remaining);
+            target.put(key, value);
         } catch (JSONException ignored) {
             // Snapshotet står som det var; appen retter det opp ved neste sync.
         }
-        WidgetStore.saveSnapshot(context, snapshot.toString());
     }
 
     private static void enqueue(Context context, String type, String key, String value) {
@@ -137,23 +184,19 @@ final class WidgetActions {
     /** Ber begge widgetene hente innhold på nytt og tegne seg om. */
     static void refreshAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        notifyProvider(context, manager, HandlelisteWidget.class, R.id.widget_list);
-        notifyProvider(context, manager, PafyllWidget.class, R.id.widget_list);
+        notifyProvider(context, manager, HandlelisteWidget.class);
+        notifyProvider(context, manager, PafyllWidget.class);
     }
 
-    private static void notifyProvider(
-            Context context,
-            AppWidgetManager manager,
-            Class<?> provider,
-            int collectionViewId) {
+    private static void notifyProvider(Context context, AppWidgetManager manager, Class<?> provider) {
         int[] ids = manager.getAppWidgetIds(new ComponentName(context, provider));
         if (ids == null || ids.length == 0) {
             return;
         }
         // Listeinnholdet leses av fabrikken; rammen rundt tegnes av provideren.
-        manager.notifyAppWidgetViewDataChanged(ids, collectionViewId);
+        manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_collection);
         context.sendBroadcast(
-                new android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
                         .setComponent(new ComponentName(context, provider))
                         .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids));
     }

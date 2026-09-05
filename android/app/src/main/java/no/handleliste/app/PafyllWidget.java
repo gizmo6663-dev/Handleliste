@@ -34,7 +34,7 @@ public class PafyllWidget extends AppWidgetProvider {
     }
 
     private static RemoteViews build(Context context, int appWidgetId) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_pafyll);
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_page_refill);
 
         int count = WidgetListFactory.dueSuggestions(WidgetStore.snapshot(context)).length();
         views.setTextViewText(R.id.widget_count, count > 0 ? String.valueOf(count) : "");
@@ -42,14 +42,14 @@ public class PafyllWidget extends AppWidgetProvider {
         Intent rows = new Intent(context, PafyllWidgetService.class);
         rows.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));
-        views.setRemoteAdapter(R.id.widget_list, rows);
-        views.setEmptyView(R.id.widget_list, R.id.widget_empty);
+        views.setRemoteAdapter(R.id.widget_collection, rows);
+        views.setEmptyView(R.id.widget_collection, R.id.widget_empty);
 
         Intent add = new Intent(context, PafyllWidget.class);
         add.setAction(WidgetActions.ACTION_ADD);
         add.setData(Uri.parse(add.toUri(Intent.URI_INTENT_SCHEME)));
         views.setPendingIntentTemplate(
-                R.id.widget_list,
+                R.id.widget_collection,
                 PendingIntent.getBroadcast(
                         context,
                         0,

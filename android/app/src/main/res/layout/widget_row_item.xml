@@ -6,8 +6,8 @@
     android:minHeight="56dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingTop="9dp"
+    android:paddingBottom="9dp">
 
     <TextView
         android:id="@+id/row_icon"
@@ -17,30 +17,15 @@
         android:paddingRight="10dp"
         android:textSize="18sp" />
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/row_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/row_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/widgetText"
-            android:textSize="16sp"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/row_why"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/widgetMuted"
-            android:textSize="12sp"
-            android:maxLines="1"
-            android:ellipsize="end" />
-    </LinearLayout>
+        android:textColor="@color/widgetText"
+        android:textSize="16sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
     <TextView
         android:layout_width="36dp"

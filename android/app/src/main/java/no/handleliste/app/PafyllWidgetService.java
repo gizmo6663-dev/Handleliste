@@ -8,6 +8,6 @@ public class PafyllWidgetService extends RemoteViewsService {
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new WidgetListFactory(getApplicationContext(), WidgetListFactory.Kind.PAFYLL);
+        return new WidgetListFactory(getApplicationContext(), intent, true);
     }
 }
