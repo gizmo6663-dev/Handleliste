@@ -3,6 +3,7 @@ import { guessCategory, normalize } from './categories.ts';
 import { parseInput } from './parse.ts';
 import { DAY } from './suggestions.ts';
 import { emptyState, flushState, loadState, migrate, saveState, STORAGE_KEY } from './storage.ts';
+import { syncWidget } from './widget.ts';
 import type {
   AppState,
   CatalogItem,
@@ -38,6 +39,7 @@ function commit(next: AppState, undoLabel?: string): void {
   }
   state = next;
   saveState(state);
+  syncWidget(state);
   emit();
 }
 
@@ -69,6 +71,7 @@ if (typeof window !== 'undefined') {
     if (event.key !== STORAGE_KEY || !event.newValue) return;
     try {
       state = migrate(JSON.parse(event.newValue));
+      syncWidget(state);
       emit();
     } catch {
       /* ignorert med vilje */
@@ -396,6 +399,7 @@ export const actions = {
     if (!previous) return false;
     state = previous;
     saveState(state);
+    syncWidget(state);
     emit();
     return true;
   },

@@ -4,4 +4,7 @@
     <string name="title_activity_main">Handleliste</string>
     <string name="package_name">no.handleliste.app</string>
     <string name="custom_url_scheme">no.handleliste.app</string>
+    <string name="widget_description">Se hva som står igjen på handlelista</string>
+    <string name="widget_empty">Ingenting på lista</string>
+    <string name="widget_more">… og %1$d til</string>
 </resources>

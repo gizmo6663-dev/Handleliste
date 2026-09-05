@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 
 interface SheetProps {
   title: string;
@@ -23,6 +24,25 @@ export function Sheet({ title, subtitle, onClose, children }: SheetProps) {
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
+  // På Android lukker tilbakeknappen arket. Så lenge en lytter er registrert,
+  // lar plattformen være å navigere selv.
+  useEffect(() => {
+    let handle: { remove: () => void } | undefined;
+    let cancelled = false;
+    CapacitorApp.addListener('backButton', () => onClose())
+      .then((registered) => {
+        if (cancelled) registered.remove();
+        else handle = registered;
+      })
+      .catch(() => {
+        // Ikke på en enhet med tilbakeknapp — da gjelder Escape og klikk utenfor.
+      });
+    return () => {
+      cancelled = true;
+      handle?.remove();
     };
   }, [onClose]);
 

@@ -13,6 +13,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Må registreres før super, ellers rekker ikke broen å se plugin-en.
+        registerPlugin(HandlelistePlugin.class);
         super.onCreate(savedInstanceState);
 
         // Fra Android 15 tegnes apper kant til kant, og websiden ville ellers

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildSuggestions } from './lib/suggestions.ts';
-import { actions, useApp } from './lib/store.ts';
+import { actions, getState, useApp } from './lib/store.ts';
+import { syncWidget } from './lib/widget.ts';
 import { InsightsView } from './ui/InsightsView.tsx';
 import { ListView } from './ui/ListView.tsx';
 import { SettingsView } from './ui/SettingsView.tsx';
@@ -73,6 +74,8 @@ export function App() {
 
   useEffect(() => {
     consumeIncomingItem();
+    // Widgeten kan ha stått urørt siden sist appen var oppe.
+    syncWidget(getState());
     // Også ved hash-bytte: en snarvei som treffer en app som allerede er åpen,
     // laster ikke siden på nytt.
     const onHashChange = () => {
