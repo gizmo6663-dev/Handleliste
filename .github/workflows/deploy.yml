@@ -1,8 +1,7 @@
 name: Bygg og publiser
 
+# Kjøres bare når du selv ber om det — Android-APK-en er hovedveien nå.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

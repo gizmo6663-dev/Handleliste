@@ -1,0 +1,85 @@
+name: Bygg Android-APK
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Installer nødvendige SDK-pakker
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - run: npm ci
+
+      - name: Kjør tester
+        run: npm test
+
+      - name: Bygg web-delen
+        run: npm run build
+
+      # Kopierer dist/ inn i Android-prosjektet og skriver Capacitor-konfigurasjonen.
+      - name: Synkroniser inn i Android-prosjektet
+        run: npx cap sync android
+
+      - name: Bygg signert APK
+        working-directory: android
+        env:
+          HANDLELISTE_VERSION_CODE: ${{ github.run_number }}
+          HANDLELISTE_VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Gi APK-en et gjenkjennelig navn
+        run: |
+          mkdir -p utgivelse
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             utgivelse/handleliste-1.0.${{ github.run_number }}.apk
+          ls -lh utgivelse/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handleliste-apk
+          path: utgivelse/*.apk
+          retention-days: 90
+
+      # Fast nedlastingsside: utgivelsen «siste» peker alltid på nyeste bygg.
+      - name: Publiser som utgivelse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete siste --yes --cleanup-tag 2>/dev/null || true
+          gh release create siste utgivelse/*.apk \
+            --title "Handleliste — siste bygg" \
+            --target "${{ github.sha }}" \
+            --notes "Bygget fra \`${{ github.ref_name }}\` (${{ github.sha }}).
+
+          Last ned APK-en på telefonen og åpne den for å installere.
+          Første gang må du tillate installasjon fra nettleseren din i Android-innstillingene.
+
+          Alle bygg er signert med samme nøkkel, så nye versjoner kan installeres
+          rett oppå den forrige uten at handlelista går tapt."

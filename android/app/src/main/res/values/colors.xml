@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Vindusbakgrunn bak websiden: det som vises i kantene mot systemlinjene. -->
+    <color name="appBackground">#F6F7F4</color>
+    <!-- Oppstartsskjermen bruker samme grønne som app-ikonet. -->
+    <color name="splashBackground">#1D6042</color>
+    <color name="widgetBackground">#FFFFFF</color>
+    <color name="widgetText">#171A17</color>
+    <color name="widgetMuted">#6C716C</color>
+    <color name="widgetAccent">#1D6042</color>
+</resources>

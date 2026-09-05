@@ -1,0 +1,72 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "no.handleliste.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "no.handleliste.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // Android nekter å installere en APK med samme eller lavere versionCode
+        // over en eksisterende. Byggeflyten teller derfor opp per kjøring.
+        versionCode (System.getenv("HANDLELISTE_VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("HANDLELISTE_VERSION_NAME") ?: "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+
+    // Fast signeringsnøkkel. Den ligger i repoet med vilje: appen sideloades og
+    // publiseres ikke i noen butikk, og uten samme signatur i hvert bygg må
+    // appen avinstalleres før en oppdatering — noe som ville slettet
+    // handlelista og hele læringshistorikken. Bytt til nøkkel fra
+    // GitHub Secrets hvis appen en dag skal distribueres videre.
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("HANDLELISTE_KEYSTORE") ?: "../handleliste.keystore")
+            storePassword System.getenv("HANDLELISTE_KEYSTORE_PASSWORD") ?: "handleliste"
+            keyAlias System.getenv("HANDLELISTE_KEY_ALIAS") ?: "handleliste"
+            keyPassword System.getenv("HANDLELISTE_KEY_PASSWORD") ?: "handleliste"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
