@@ -34,10 +34,11 @@ egen butikk, så følger lista deg gjennom lokalet.
 
 **Innsikt.** Hva du kjøper oftest, hvor ofte, og hva som står for tur.
 
-**Hjemskjerm-widget.** En ekte Android-widget viser de neste varene på lista uten at du åpner
-appen, og oppdaterer seg selv når lista endrer seg. Trykk på den for å åpne appen. I nettleseren
-finnes en tilsvarende kompakt visning på `#/widget`, og lenkeformatet `#/legg-til?vare=melk`
-lar deg legge til varer fra delingsmenyen i andre apper.
+**To hjemskjerm-widgeter du kan handle i.** *Handleliste* viser lista og lar deg krysse av varer
+med ett trykk, uten å åpne appen. *Snart tomt* viser varene du trolig snart trenger påfyll av,
+med hvor ofte du pleier å kjøpe dem — ett trykk legger varen på lista. Begge ruller, så de viser
+alt uansett hvor store du gjør dem. I nettleseren finnes en kompakt visning på `#/widget`, og
+lenkeformatet `#/legg-til?vare=melk` lar deg legge til varer fra delingsmenyen i andre apper.
 
 **Elegant og tilgjengelig.** Lyst og mørkt tema, store trykkflater, respekt for
 `prefers-reduced-motion`, skjermleservennlige etiketter, angre på alt som fjernes.
@@ -82,7 +83,7 @@ historikken.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 45 tester for parsing, kategorisering og forslagsmotoren
+npm test           # 55 tester for parsing, kategorisering, forslag og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -133,13 +134,25 @@ GitHub Secrets og sett `HANDLELISTE_KEYSTORE`, `HANDLELISTE_KEYSTORE_PASSWORD`,
 `HANDLELISTE_KEY_ALIAS` og `HANDLELISTE_KEY_PASSWORD` i workflowen. Byggefila leser dem
 allerede fra miljøet.
 
-### Widgeten
+### Widgetene
 
-Widgeten kan ikke lese WebViewens localStorage. Websiden sender derfor en kort oppsummering av
-lista til `SharedPreferences` gjennom en liten Capacitor-plugin (`HandlelistePlugin`), og
-widgeten (`HandlelisteWidget`) tegner seg fra den. Layouten har seks faste rader som skjules når
-de ikke er i bruk — en widget kan ikke bygge lister fritt uten en egen tjeneste — og resten
-oppsummeres på siste linje.
+En widget kan verken lese eller skrive WebViewens localStorage, så broen går begge veier gjennom
+`SharedPreferences` (`WidgetStore`):
+
+**Ut til widgetene.** Appen sender en oppsummering av lista og forslagene hver gang noe endrer
+seg. Widgetene tegner seg fra den, gjennom en tjeneste per widget (`ListWidgetService`,
+`PafyllWidgetService`) — det er det som gjør at listene kan rulle og widgeten endre størrelse.
+
+**Inn fra widgetene.** Et trykk kan ikke skrive til appens lagring, så det legges i en kø
+(`WidgetActions`) mens widgeten oppdaterer sin egen visning med det samme — du ser altså
+resultatet uten å vente. Neste gang appen er framme, ved oppstart eller når den kommer i
+forgrunnen, tømmer den køen og kjører handlingene gjennom sin egen logikk. Køen leses og tømmes
+i samme operasjon, så et trykk kan ikke utføres to ganger. Tidspunktet som registreres er da
+**trykket skjedde**, ikke da appen rakk å lese køen — det er dette forslagsmotoren lærer av.
+
+Påfyll-widgeten får med seg forfallstidspunktet for hvert forslag, ikke bare de som er aktuelle
+akkurat nå, og filtrerer selv på tid. Dermed viser den riktige varer også når appen ikke har
+vært åpen på en stund.
 
 ---
 
@@ -168,8 +181,12 @@ src/
 android/
   app/src/main/java/no/handleliste/app/
     MainActivity.java       WebView + window insets
-    HandlelistePlugin.java  Broen fra websiden til widgeten
-    HandlelisteWidget.java  Selve hjemskjerm-widgeten
+    HandlelistePlugin.java  Broen mellom websiden og widgetene
+    WidgetStore.java        Delt lagring: snapshot ut, kø av trykk inn
+    WidgetActions.java      Det som skjer når noen trykker i en widget
+    WidgetListFactory.java  Radene i begge widgetene
+    HandlelisteWidget.java  Handlelista, med avkryssing
+    PafyllWidget.java       «Snart tomt», med ett trykk for å legge til
 ```
 
 Ingen backend, ingen kontoer, ingen sporing. React, Vite og Capacitor er de eneste
@@ -187,5 +204,6 @@ Ting som passer å bygge videre på, i den rekkefølgen de trolig gir mest:
 - **Oppskrifter** som legger inn alle ingrediensene med ett trykk.
 - **Strekkodeskanning** for å legge til varer i butikken.
 - **Sesongjustering** av forslagene (grillmat om sommeren, klementiner i desember).
-- **Widget med avkryssing** rett fra hjemskjermen, uten å åpne appen.
+- **Skrive inn varer i widgeten** — krever en liten egen dialog, siden en widget ikke kan ta
+  imot tekst selv.
 - **iOS-app**, som krever en Mac og en utviklerkonto for å signere.
