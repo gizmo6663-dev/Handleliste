@@ -3,7 +3,7 @@ import { guessCategory, normalize } from './categories.ts';
 import { parseInput } from './parse.ts';
 import { DAY } from './suggestions.ts';
 import { emptyState, flushState, loadState, migrate, saveState, STORAGE_KEY } from './storage.ts';
-import { syncWidget } from './widget.ts';
+import { syncWidget, takePendingOps } from './widget.ts';
 import type {
   AppState,
   CatalogItem,
@@ -168,13 +168,17 @@ export const actions = {
     return entry;
   },
 
-  /** Legger til en kjent vare direkte (forslag, favoritt, hurtigvalg). */
-  addItem(itemId: string, source: EntrySource = 'manuell'): void {
+  /**
+   * Legger til en kjent vare direkte (forslag, favoritt, hurtigvalg).
+   * `at` settes når handlingen ble gjort et annet sted enn i appen —
+   * et trykk i en widget skal telle fra da det skjedde.
+   */
+  addItem(itemId: string, source: EntrySource = 'manuell', at?: number): void {
     const item = state.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
     if (state.list.some((entry) => entry.itemId === itemId)) return;
 
-    const now = Date.now();
+    const now = at ?? Date.now();
     const entry: ListEntry = {
       id: newId(),
       itemId,
@@ -199,8 +203,8 @@ export const actions = {
     );
   },
 
-  toggleEntry(entryId: string): void {
-    const now = Date.now();
+  toggleEntry(entryId: string, at?: number): void {
+    const now = at ?? Date.now();
     commit({
       ...state,
       list: state.list.map((entry) =>
@@ -402,6 +406,30 @@ export const actions = {
     syncWidget(state);
     emit();
     return true;
+  },
+
+  /**
+   * Utfører trykkene som er gjort i hjemskjerm-widgetene siden sist.
+   *
+   * Widgetene kan ikke skrive til appens lagring, så de legger trykkene i kø
+   * og oppdaterer sin egen visning med det samme. Her kjøres de gjennom den
+   * ekte logikken, og widgetene får et korrigert bilde tilbake.
+   */
+  async applyWidgetOps(): Promise<number> {
+    const ops = await takePendingOps();
+    for (const op of ops) {
+      if (op.type === 'toggle' && op.entryId) {
+        // Linja kan være borte hvis handleturen ble fullført i mellomtiden.
+        if (state.list.some((entry) => entry.id === op.entryId)) {
+          actions.toggleEntry(op.entryId, op.at);
+        }
+      } else if (op.type === 'add' && op.itemId) {
+        actions.addItem(op.itemId, 'forslag', op.at);
+      }
+    }
+    // Også når køen var tom: widgeten kan ha en optimistisk endring å rette opp.
+    syncWidget(state);
+    return ops.length;
   },
 
   replaceState(next: AppState): void {

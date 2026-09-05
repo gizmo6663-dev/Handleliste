@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildSuggestions } from './lib/suggestions.ts';
-import { actions, getState, useApp } from './lib/store.ts';
-import { syncWidget } from './lib/widget.ts';
+import { App as CapacitorApp } from '@capacitor/app';
+import { actions, useApp } from './lib/store.ts';
 import { InsightsView } from './ui/InsightsView.tsx';
 import { ListView } from './ui/ListView.tsx';
 import { SettingsView } from './ui/SettingsView.tsx';
@@ -74,8 +74,9 @@ export function App() {
 
   useEffect(() => {
     consumeIncomingItem();
-    // Widgeten kan ha stått urørt siden sist appen var oppe.
-    syncWidget(getState());
+    // Widgetene kan ha samlet opp trykk mens appen var lukket.
+    void actions.applyWidgetOps();
+
     // Også ved hash-bytte: en snarvei som treffer en app som allerede er åpen,
     // laster ikke siden på nytt.
     const onHashChange = () => {
@@ -83,7 +84,26 @@ export function App() {
       setRoute(readRoute());
     };
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+
+    // Kommer appen fram igjen, kan det ha blitt trykket i en widget imens.
+    let listener: { remove: () => void } | undefined;
+    let cancelled = false;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) void actions.applyWidgetOps();
+    })
+      .then((registered) => {
+        if (cancelled) registered.remove();
+        else listener = registered;
+      })
+      .catch(() => {
+        // I nettleseren finnes ingen widgeter å hente noe fra.
+      });
+
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      cancelled = true;
+      listener?.remove();
+    };
   }, []);
 
   // Temaet styres av en attributt på <html>, slik at CSS-en gjør resten.

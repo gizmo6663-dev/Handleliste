@@ -7,25 +7,46 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-/** Broen fra websiden til hjemskjerm-widgeten. */
+import org.json.JSONException;
+
+/** Broen mellom websiden og de to hjemskjerm-widgetene. */
 @CapacitorPlugin(name = "Handleliste")
 public class HandlelistePlugin extends Plugin {
 
     /**
-     * Tar imot en kort oppsummering av lista og oppdaterer widgeten.
-     * Kalles av websiden hver gang lista endrer seg.
+     * Tar imot en oppsummering av lista og forslagene, og oppdaterer
+     * widgetene. Kalles av websiden hver gang noe endrer seg.
      */
     @PluginMethod
     public void syncWidget(PluginCall call) {
-        JSArray lines = call.getArray("lines");
+        JSArray list = call.getArray("list");
+        JSArray suggestions = call.getArray("suggestions");
         Integer remaining = call.getInt("remaining", 0);
 
         JSObject payload = new JSObject();
-        payload.put("lines", lines != null ? lines : new JSArray());
+        payload.put("list", list != null ? list : new JSArray());
+        payload.put("suggestions", suggestions != null ? suggestions : new JSArray());
         payload.put("remaining", remaining != null ? remaining : 0);
 
-        WidgetStore.save(getContext(), payload.toString());
-        HandlelisteWidget.refreshAll(getContext());
+        WidgetStore.saveSnapshot(getContext(), payload.toString());
+        WidgetActions.refreshAll(getContext());
         call.resolve();
+    }
+
+    /**
+     * Henter trykkene som er gjort i widgetene siden sist, og tømmer køen.
+     * Websiden kjører dem gjennom sin egen logikk og sender et nytt
+     * snapshot tilbake etterpå.
+     */
+    @PluginMethod
+    public void takePendingOps(PluginCall call) {
+        String raw = WidgetStore.takeQueue(getContext());
+        JSObject result = new JSObject();
+        try {
+            result.put("ops", new JSArray(raw));
+        } catch (JSONException e) {
+            result.put("ops", new JSArray());
+        }
+        call.resolve(result);
     }
 }
