@@ -4,8 +4,19 @@ En rolig, smart handleliste som sorterer varene etter kategori og lærer seg ryt
 hvor ofte du pleier å trenge melk, kaffe eller toalettpapir — og sier diskret fra når det
 nærmer seg at du går tom.
 
-Appen er en installerbar PWA. Alt ligger lagret på din egen enhet, den fungerer uten nett,
-og ingen data sendes noe sted.
+Appen installeres som en **Android-app (APK)** — ingen hosting, ingen konto, ingen app-butikk.
+Alt ligger lagret på din egen telefon, den fungerer uten nett, og ingen data sendes noe sted.
+Den samme koden kjører også som PWA i nettleseren.
+
+## Last ned og installer
+
+**[Siste APK](https://github.com/gizmo6663-dev/Handleliste/releases/tag/siste)** — åpne lenken
+på telefonen, last ned filen og trykk på den.
+
+Første gang spør Android om lov til å installere apper fra nettleseren din; det er den
+vanlige advarselen for apper som ikke kommer fra Play-butikken. Alle bygg signeres med samme
+nøkkel, så en ny versjon kan installeres rett oppå den forrige — handlelista og alt appen har
+lært blir liggende.
 
 ---
 
@@ -23,9 +34,10 @@ egen butikk, så følger lista deg gjennom lokalet.
 
 **Innsikt.** Hva du kjøper oftest, hvor ofte, og hva som står for tur.
 
-**Widget-visning og snarveier.** En kompakt visning på `#/widget` for hjemskjermen, snarveier
-i app-ikonet, og lenkeformatet `#/legg-til?vare=melk` som lar deg legge til varer fra en
-iOS-snarvei, en Android-widget eller delingsmenyen i andre apper.
+**Hjemskjerm-widget.** En ekte Android-widget viser de neste varene på lista uten at du åpner
+appen, og oppdaterer seg selv når lista endrer seg. Trykk på den for å åpne appen. I nettleseren
+finnes en tilsvarende kompakt visning på `#/widget`, og lenkeformatet `#/legg-til?vare=melk`
+lar deg legge til varer fra delingsmenyen i andre apper.
 
 **Elegant og tilgjengelig.** Lyst og mørkt tema, store trykkflater, respekt for
 `prefers-reduced-motion`, skjermleservennlige etiketter, angre på alt som fjernes.
@@ -78,21 +90,56 @@ npm run preview    # se på produksjonsbygget lokalt
 Vil du se hvordan forslagene oppfører seg med en gang: **Innstillinger → Prøv eksempeldata**
 legger inn en realistisk historikk med tolv varer.
 
-### Publisering
+### Nettversjonen
 
-`.github/workflows/deploy.yml` bygger og legger appen ut på GitHub Pages ved push til `main`
-(slå på Pages med kilde «GitHub Actions» i innstillingene for repoet). En PWA må serveres over
-HTTPS for å kunne installeres — Pages holder.
+Android-APK-en er hovedveien, men den samme koden kjører som PWA i nettleseren.
+`.github/workflows/deploy.yml` legger den på GitHub Pages — den kjører bare når du selv starter
+den, fra Actions-fanen. Hostes appen i en undermappe, sett basestien:
+`BASE_PATH=/Handleliste/ npm run build`.
 
-Hostes appen i en undermappe, sett basestien: `BASE_PATH=/Handleliste/ npm run build`.
+På iPhone finnes ingen APK; der installeres nettversjonen fra Safari via Del →
+«Legg til på Hjem-skjerm».
 
-### Installer på telefonen
+---
 
-- **iOS:** Åpne i Safari → Del → «Legg til på Hjem-skjerm».
-- **Android:** Åpne i Chrome → menyen → «Installer app».
+## Android-appen
 
-For en ekte hjemskjerm-widget: lag en snarvei til `#/widget` (kompakt visning), eller bruk
-`#/legg-til?vare=melk` fra Snarveier på iOS for å legge til varer med ett trykk.
+Web-appen pakkes med [Capacitor](https://capacitorjs.com) og kjøres i en WebView. Alle filene
+ligger i APK-en, så appen starter uten nett og trenger ingen server. Den eneste tillatelsen
+appen ber om er INTERNET, som Capacitor bruker for sin egen lokale bro.
+
+**Byggingen skjer i GitHub Actions** (`.github/workflows/android.yml`), som har Android SDK
+tilgjengelig. Hver kjøring tester, bygger, signerer og legger APK-en ut som utgivelsen «siste».
+Versjonskoden telles opp per kjøring, siden Android nekter å installere en APK med samme eller
+lavere versionCode over en eksisterende.
+
+Vil du bygge lokalt trenger du JDK 21 og Android SDK:
+
+```bash
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# APK-en havner i android/app/build/outputs/apk/release/
+```
+
+### Om signeringsnøkkelen
+
+`android/handleliste.keystore` ligger i repoet med vilje. Appen sideloades og publiseres ikke i
+noen butikk, og uten samme signatur i hvert bygg måtte appen avinstalleres før hver oppdatering
+— noe som ville slettet handlelista og hele læringshistorikken.
+
+Skal appen en dag distribueres videre, bytt til en nøkkel du holder hemmelig: legg den i
+GitHub Secrets og sett `HANDLELISTE_KEYSTORE`, `HANDLELISTE_KEYSTORE_PASSWORD`,
+`HANDLELISTE_KEY_ALIAS` og `HANDLELISTE_KEY_PASSWORD` i workflowen. Byggefila leser dem
+allerede fra miljøet.
+
+### Widgeten
+
+Widgeten kan ikke lese WebViewens localStorage. Websiden sender derfor en kort oppsummering av
+lista til `SharedPreferences` gjennom en liten Capacitor-plugin (`HandlelistePlugin`), og
+widgeten (`HandlelisteWidget`) tegner seg fra den. Layouten har seks faste rader som skjules når
+de ikke er i bruk — en widget kan ikke bygge lister fritt uten en egen tjeneste — og resten
+oppsummeres på siste linje.
 
 ---
 
@@ -108,6 +155,7 @@ src/
     storage.ts        Lagring i localStorage, med migrering av gamle data
     store.ts          Tilstand og handlinger, med angring
     demo.ts           Eksempeldata
+    widget.ts         Mater hjemskjerm-widgeten på Android
   ui/
     ListView.tsx      Lista, gruppert etter kategori
     SuggestionsView.tsx
@@ -116,9 +164,16 @@ src/
     WidgetView.tsx
     Composer.tsx      Hurtiginput med autofullføring
     EntrySheet.tsx    Detaljer for én vare
+
+android/
+  app/src/main/java/no/handleliste/app/
+    MainActivity.java       WebView + window insets
+    HandlelistePlugin.java  Broen fra websiden til widgeten
+    HandlelisteWidget.java  Selve hjemskjerm-widgeten
 ```
 
-Ingen backend, ingen kontoer, ingen sporing. React og Vite er de eneste avhengighetene.
+Ingen backend, ingen kontoer, ingen sporing. React, Vite og Capacitor er de eneste
+avhengighetene.
 
 ---
 
@@ -132,4 +187,5 @@ Ting som passer å bygge videre på, i den rekkefølgen de trolig gir mest:
 - **Oppskrifter** som legger inn alle ingrediensene med ett trykk.
 - **Strekkodeskanning** for å legge til varer i butikken.
 - **Sesongjustering** av forslagene (grillmat om sommeren, klementiner i desember).
-- **Ekte OS-widgets**, som krever en tynn native innpakning rundt web-appen.
+- **Widget med avkryssing** rett fra hjemskjermen, uten å åpne appen.
+- **iOS-app**, som krever en Mac og en utviklerkonto for å signere.
