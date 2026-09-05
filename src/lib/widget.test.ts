@@ -162,14 +162,36 @@ describe('forslagene widgeten får', () => {
 describe('katalogen widgeten plukker fra', () => {
   beforeEach(() => actions.resetAll());
 
-  it('tar med alt appen kjenner, med kategori', () => {
+  it('tar med både egne og vanlige varer, med kategori', () => {
     actions.addByText('melk');
-    actions.addByText('brokkoli');
 
     const { catalog } = buildWidgetSnapshot(getState());
-    expect(catalog.map((row) => row.name).sort()).toEqual(['Brokkoli', 'Melk']);
     expect(catalog.find((row) => row.name === 'Melk')!.categoryId).toBe('meieri');
+    // Vanlige varer er med fra start, ellers ville kategoriene vært tomme.
     expect(catalog.find((row) => row.name === 'Brokkoli')!.categoryId).toBe('frukt-gront');
+    expect(catalog.find((row) => row.name === 'Toalettpapir')!.categoryId).toBe('husholdning');
+  });
+
+  it('gir egne varer en id, og vanlige varer bare et navn', () => {
+    actions.addByText('melk');
+
+    const { catalog } = buildWidgetSnapshot(getState());
+    expect(catalog.find((row) => row.name === 'Melk')!.itemId).not.toBe('');
+    // Uten id må appen opprette varen når trykket kommer inn.
+    expect(catalog.find((row) => row.name === 'Brokkoli')!.itemId).toBe('');
+  });
+
+  it('viser ikke en vanlig vare dobbelt når du alt har den', () => {
+    const før = buildWidgetSnapshot(getState()).catalog.filter((r) => r.name === 'Kaffe');
+    expect(før).toHaveLength(1);
+
+    actions.addByText('kaffe');
+
+    const etter = buildWidgetSnapshot(getState()).catalog.filter(
+      (row) => row.name.toLowerCase() === 'kaffe',
+    );
+    expect(etter).toHaveLength(1);
+    expect(etter[0]!.itemId).not.toBe('');
   });
 
   it('markerer varer som allerede ligger på lista', () => {
@@ -212,12 +234,54 @@ describe('katalogen widgeten plukker fra', () => {
   it('utelater arkiverte varer', () => {
     actions.addByText('melk');
     const itemId = getState().items[0]!.id;
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.name === 'Melk')).toBe(true);
+
     actions.replaceState({
       ...getState(),
       items: getState().items.map((item) =>
         item.id === itemId ? { ...item, archived: true } : item,
       ),
     });
-    expect(buildWidgetSnapshot(getState()).catalog).toHaveLength(0);
+
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.name === 'Melk')).toBe(false);
+  });
+
+  it('har noe å tilby i hver kategori fra første stund', () => {
+    const { catalog, categories } = buildWidgetSnapshot(getState());
+    // «Annet» er med vilje tom — den er en oppsamlingsplass, ikke en hylle.
+    const medVarer = categories.filter((c) =>
+      catalog.some((row) => row.categoryId === c.id && !row.onList),
+    );
+    expect(medVarer.length).toBe(categories.length - 1);
+  });
+
+  it('markerer egne varer som ligger på lista', () => {
+    actions.addByText('melk');
+    const rad = buildWidgetSnapshot(getState()).catalog.find((r) => r.name === 'Melk')!;
+    expect(rad.onList).toBe(true);
+  });
+});
+
+describe('vanlige varer plukket fra en kategori', () => {
+  beforeEach(() => actions.resetAll());
+
+  it('opprettes med gjettet kategori og tidspunktet fra trykket', () => {
+    const iGar = Date.now() - DAY;
+
+    // Slik køen utføres når appen tømmer den etter et widget-trykk.
+    actions.addByText('Brokkoli', 'forslag', iGar);
+
+    const item = getState().items.find((candidate) => candidate.name === 'Brokkoli')!;
+    expect(item.category).toBe('frukt-gront');
+    expect(item.history).toEqual([iGar]);
+    expect(getState().list[0]!.source).toBe('forslag');
+  });
+
+  it('forsvinner fra kategorien når den er lagt til', () => {
+    actions.addByText('Brokkoli', 'forslag');
+
+    const rad = buildWidgetSnapshot(getState()).catalog.find((r) => r.name === 'Brokkoli')!;
+    expect(rad.onList).toBe(true);
+    expect(rad.itemId).not.toBe('');
   });
 });

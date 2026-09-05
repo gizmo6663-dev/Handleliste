@@ -233,6 +233,8 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
 
         Intent fillIn = new Intent();
         fillIn.putExtra(WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
+        // Vanlige varer appen ikke har møtt før har ingen id, bare et navn.
+        fillIn.putExtra(WidgetActions.EXTRA_NAME, row.optString("name"));
         views.setOnClickFillInIntent(R.id.row_root, fillIn);
         return views;
     }

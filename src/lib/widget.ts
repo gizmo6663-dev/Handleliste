@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { category } from './categories.ts';
+import { category, normalize } from './categories.ts';
+import { commonItems } from './common-items.ts';
 import { formatQty } from './parse.ts';
 import { describeInterval, forecast } from './suggestions.ts';
 import type { AppState } from './types.ts';
@@ -32,6 +33,7 @@ interface WidgetCategory {
 }
 
 interface WidgetCatalogItem {
+  /** Tom for vanlige varer appen ikke har møtt før — da opprettes de ved trykk. */
   itemId: string;
   icon: string;
   name: string;
@@ -43,9 +45,11 @@ interface WidgetCatalogItem {
 /** Et trykk gjort i en widget, som venter på å bli utført av appen. */
 export interface WidgetOp {
   id: string;
-  type: 'toggle' | 'add';
+  /** «addNew» er en vanlig vare appen ikke har møtt før — den har bare et navn. */
+  type: 'toggle' | 'add' | 'addNew';
   entryId?: string;
   itemId?: string;
+  navn?: string;
   at: number;
 }
 
@@ -127,9 +131,11 @@ export function buildWidgetSnapshot(state: AppState) {
     .filter((row): row is WidgetSuggestion => row !== null)
     .slice(0, MAX_SUGGESTIONS);
 
-  // Katalogen: alt appen kjenner, så man kan plukke kjente varer fra
-  // widgeten uten å skrive. Mest kjøpte først innenfor hver kategori.
-  const catalog: WidgetCatalogItem[] = state.items
+  // Katalogen man blar i fra widgeten: dine egne varer først, sortert etter
+  // hva du kjøper oftest, og deretter vanlige dagligvarer du ennå ikke har
+  // brukt. Uten de vanlige ville kategoriene stått tomme helt til du hadde
+  // rukket å skrive inn nok selv.
+  const own: WidgetCatalogItem[] = state.items
     .filter((item) => !item.archived)
     .sort((a, b) => b.purchases - a.purchases || a.name.localeCompare(b.name, 'nb'))
     .map((item) => ({
@@ -139,6 +145,19 @@ export function buildWidgetSnapshot(state: AppState) {
       categoryId: item.category,
       onList: inList.has(item.id),
     }));
+
+  const known = new Set(state.items.map((item) => item.key));
+  const common: WidgetCatalogItem[] = commonItems()
+    .filter((entry) => !known.has(normalize(entry.name)))
+    .map((entry) => ({
+      itemId: '',
+      icon: category(entry.category).icon,
+      name: entry.name,
+      categoryId: entry.category,
+      onList: false,
+    }));
+
+  const catalog = [...own, ...common];
 
   // Kategoriene i butikkens rekkefølge; widgeten teller selv hvor mange
   // varer hver av dem har igjen å tilby.

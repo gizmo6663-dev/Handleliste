@@ -42,7 +42,10 @@ public class HandlelisteWidget extends AppWidgetProvider {
         if (WidgetActions.ACTION_TOGGLE.equals(action)) {
             WidgetActions.toggle(context, intent.getStringExtra(WidgetActions.EXTRA_ENTRY_ID));
         } else if (WidgetActions.ACTION_ADD.equals(action)) {
-            WidgetActions.add(context, intent.getStringExtra(WidgetActions.EXTRA_ITEM_ID));
+            WidgetActions.add(
+                    context,
+                    intent.getStringExtra(WidgetActions.EXTRA_ITEM_ID),
+                    intent.getStringExtra(WidgetActions.EXTRA_NAME));
         } else if (WidgetActions.ACTION_PAGE.equals(action)) {
             WidgetActions.page(
                     context,

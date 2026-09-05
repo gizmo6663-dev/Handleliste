@@ -112,11 +112,11 @@ export const actions = {
    * Legger til fra fritekst. Kjenner appen varen fra før, gjenbrukes den —
    * det er slik historikken bygger seg opp på tvers av handleturer.
    */
-  addByText(raw: string, source: EntrySource = 'manuell'): ListEntry | null {
+  addByText(raw: string, source: EntrySource = 'manuell', at?: number): ListEntry | null {
     const parsed = parseInput(raw);
     if (!parsed.name.trim()) return null;
 
-    const now = Date.now();
+    const now = at ?? Date.now();
     const items = [...state.items];
     let item = findItemByName(items, parsed.name);
 
@@ -425,6 +425,10 @@ export const actions = {
         }
       } else if (op.type === 'add' && op.itemId) {
         actions.addItem(op.itemId, 'forslag', op.at);
+      } else if (op.type === 'addNew' && op.navn) {
+        // En vanlig vare plukket fra en kategori i widgeten. Den opprettes
+        // her, med kategori gjettet på vanlig vis.
+        actions.addByText(op.navn, 'forslag', op.at);
       }
     }
     // Også når køen var tom: widgeten kan ha en optimistisk endring å rette opp.

@@ -29,7 +29,10 @@ public class PafyllWidget extends AppWidgetProvider {
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
         if (WidgetActions.ACTION_ADD.equals(intent.getAction())) {
-            WidgetActions.add(context, intent.getStringExtra(WidgetActions.EXTRA_ITEM_ID));
+            WidgetActions.add(
+                    context,
+                    intent.getStringExtra(WidgetActions.EXTRA_ITEM_ID),
+                    intent.getStringExtra(WidgetActions.EXTRA_NAME));
         }
     }
 

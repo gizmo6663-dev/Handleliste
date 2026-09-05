@@ -26,6 +26,7 @@ final class WidgetActions {
 
     static final String EXTRA_ENTRY_ID = "entryId";
     static final String EXTRA_ITEM_ID = "itemId";
+    static final String EXTRA_NAME = "navn";
     static final String EXTRA_PAGE = "side";
     static final String EXTRA_CATEGORY_ID = "kategoriId";
 
@@ -55,26 +56,37 @@ final class WidgetActions {
     }
 
     /**
-     * Legger en kjent vare på lista — fra påfyll-widgeten eller fra en
-     * kategori. Varen forsvinner der den ble trykket og dukker opp på lista.
+     * Legger en vare på lista — fra påfyll-widgeten eller fra en kategori.
+     * Varen forsvinner der den ble trykket og dukker opp på lista.
+     *
+     * Vanlige varer appen ikke har møtt før har ingen id ennå; da sendes
+     * navnet i stedet, og appen oppretter varen når den tømmer køen.
      */
-    static void add(Context context, String itemId) {
-        if (itemId == null || itemId.isEmpty()) {
+    static void add(Context context, String itemId, String itemName) {
+        boolean known = itemId != null && !itemId.isEmpty();
+        boolean named = itemName != null && !itemName.isEmpty();
+        if (!known && !named) {
             return;
         }
 
         JSONObject snapshot = WidgetStore.snapshot(context);
         JSONArray list = snapshot.optJSONArray("list");
         String icon = "";
-        String name = "";
+        String name = named ? itemName : "";
 
-        // Varen finnes i katalogen; merk den som lagt til, så forsvinner den
-        // fra kategorivisningen med én gang.
+        // Merk varen som lagt til, så den forsvinner fra kategorivisningen
+        // med én gang.
         JSONArray catalog = snapshot.optJSONArray("catalog");
         if (catalog != null) {
             for (int i = 0; i < catalog.length(); i++) {
                 JSONObject row = catalog.optJSONObject(i);
-                if (row != null && itemId.equals(row.optString("itemId"))) {
+                if (row == null) {
+                    continue;
+                }
+                boolean match = known
+                        ? itemId.equals(row.optString("itemId"))
+                        : named && itemName.equals(row.optString("name"));
+                if (match) {
                     put(row, "onList", true);
                     icon = row.optString("icon");
                     name = row.optString("name");
@@ -84,7 +96,7 @@ final class WidgetActions {
         }
 
         // Den kan også ligge blant forslagene i påfyll-widgeten.
-        JSONArray suggestions = snapshot.optJSONArray("suggestions");
+        JSONArray suggestions = known ? snapshot.optJSONArray("suggestions") : null;
         if (suggestions != null) {
             JSONArray remainingSuggestions = new JSONArray();
             for (int i = 0; i < suggestions.length(); i++) {
@@ -102,11 +114,12 @@ final class WidgetActions {
             put(snapshot, "suggestions", remainingSuggestions);
         }
 
-        if (list != null && !name.isEmpty() && !alreadyOnList(list, itemId)) {
+        String pendingId = known ? itemId : "navn:" + name;
+        if (list != null && !name.isEmpty() && !alreadyOnList(list, pendingId)) {
             JSONObject added = new JSONObject();
             // Appen gir linja en ekte id når den tømmer køen.
-            put(added, "entryId", "venter-" + itemId);
-            put(added, "itemId", itemId);
+            put(added, "entryId", "venter-" + pendingId);
+            put(added, "itemId", pendingId);
             put(added, "icon", icon);
             put(added, "name", name);
             put(added, "qty", "");
@@ -117,7 +130,11 @@ final class WidgetActions {
             countAndSave(context, snapshot, list);
         }
 
-        enqueue(context, "add", EXTRA_ITEM_ID, itemId);
+        if (known) {
+            enqueue(context, "add", EXTRA_ITEM_ID, itemId);
+        } else {
+            enqueue(context, "addNew", EXTRA_NAME, name);
+        }
         refreshAll(context);
     }
 
