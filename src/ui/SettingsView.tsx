@@ -173,6 +173,41 @@ export function SettingsView() {
 
         <section className="section">
           <h2 className="section-head">
+            <span>Varer i widgeten</span>
+          </h2>
+          <div className="card">
+            <div className="setting-row" style={{ display: 'block' }}>
+              <div className="setting-title">Rydd bort ubrukte startvarer</div>
+              <div className="setting-desc" style={{ marginBottom: 8 }}>
+                {settings.starterItemWeeks === 0
+                  ? 'Startvarene blir stående for alltid.'
+                  : `Startvarer du aldri har brukt forsvinner fra widgeten etter ${settings.starterItemWeeks} ${
+                      settings.starterItemWeeks === 1 ? 'uke' : 'uker'
+                    }.`}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={26}
+                step={1}
+                value={settings.starterItemWeeks}
+                aria-label="Uker før ubrukte startvarer ryddes bort"
+                style={{ width: '100%', accentColor: 'var(--accent)' }}
+                onChange={(event) =>
+                  actions.updateSettings({ starterItemWeeks: Number(event.target.value) })
+                }
+              />
+            </div>
+          </div>
+          <p className="hint-text">
+            Gjelder bare de innebygde startvarene. Dine egne varer blir aldri fjernet — appen
+            lærer også langsomme rytmer, og en sesongvare skal stå der når sesongen kommer
+            igjen. De du sjelden bruker synker bare nedover i lista.
+          </p>
+        </section>
+
+        <section className="section">
+          <h2 className="section-head">
             <span>Butikkløype</span>
           </h2>
           <div className="card">

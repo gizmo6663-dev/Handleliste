@@ -285,3 +285,96 @@ describe('vanlige varer plukket fra en kategori', () => {
     expect(rad.itemId).not.toBe('');
   });
 });
+
+describe('rydding av startvarer', () => {
+  const UKE = 7 * DAY;
+  beforeEach(() => actions.resetAll());
+
+  /** Flytter tidspunktet startvarene kom inn så mange uker tilbake. */
+  function startvarerAlder(uker: number): void {
+    actions.replaceState({ ...getState(), starterItemsSince: Date.now() - uker * UKE });
+  }
+
+  it('beholder startvarene innenfor fristen', () => {
+    startvarerAlder(5);
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.itemId === '')).toBe(true);
+  });
+
+  it('fjerner ubrukte startvarer når fristen er ute', () => {
+    startvarerAlder(7);
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.itemId === '')).toBe(false);
+  });
+
+  it('lar dine egne varer stå selv når fristen er ute', () => {
+    actions.addByText('melk');
+    actions.toggleEntry(getState().list[0]!.id);
+    actions.completeTrip();
+    startvarerAlder(20);
+
+    const katalog = buildWidgetSnapshot(getState()).catalog;
+    expect(katalog.some((r) => r.name === 'Melk')).toBe(true);
+    expect(katalog.every((r) => r.itemId !== '')).toBe(true);
+  });
+
+  it('beholder en startvare du har tatt i bruk, som din egen', () => {
+    // Plukket fra en kategori i widgeten.
+    actions.addByText('Brokkoli', 'forslag');
+    actions.toggleEntry(getState().list[0]!.id);
+    actions.completeTrip();
+    startvarerAlder(20);
+
+    const rad = buildWidgetSnapshot(getState()).catalog.find((r) => r.name === 'Brokkoli');
+    expect(rad).toBeDefined();
+    expect(rad!.itemId).not.toBe('');
+  });
+
+  it('lar deg slå ryddingen helt av', () => {
+    startvarerAlder(52);
+    actions.updateSettings({ starterItemWeeks: 0 });
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.itemId === '')).toBe(true);
+  });
+
+  it('følger antallet uker som er stilt inn', () => {
+    startvarerAlder(10);
+    actions.updateSettings({ starterItemWeeks: 12 });
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.itemId === '')).toBe(true);
+
+    actions.updateSettings({ starterItemWeeks: 8 });
+    expect(buildWidgetSnapshot(getState()).catalog.some((r) => r.itemId === '')).toBe(false);
+  });
+});
+
+describe('rekkefølgen på dine egne varer', () => {
+  beforeEach(() => actions.resetAll());
+
+  /** Legger inn en vare med gitt antall kjøp og tid siden sist. */
+  function vare(navn: string, kjøp: number, ukerSiden: number): void {
+    actions.addByText(navn);
+    const item = getState().items.find((i) => i.key === navn.toLowerCase())!;
+    const sist = Date.now() - ukerSiden * 7 * DAY;
+    actions.replaceState({
+      ...getState(),
+      list: [],
+      items: getState().items.map((i) =>
+        i.id === item.id ? { ...i, purchases: kjøp, history: [sist] } : i,
+      ),
+    });
+  }
+
+  it('setter det du kjøper ofte og nylig øverst', () => {
+    vare('kaffe', 10, 1);
+    vare('pinnekjøtt', 2, 40);
+
+    const egne = buildWidgetSnapshot(getState()).catalog.filter((r) => r.itemId !== '');
+    expect(egne[0]!.name).toBe('Kaffe');
+  });
+
+  it('lar en sesongvare synke, men aldri forsvinne', () => {
+    vare('kaffe', 10, 1);
+    vare('pinnekjøtt', 2, 40);
+
+    const egne = buildWidgetSnapshot(getState()).catalog.filter((r) => r.itemId !== '');
+    expect(egne.map((r) => r.name)).toContain('Pinnekjøtt');
+    expect(egne[egne.length - 1]!.name).toBe('Pinnekjøtt');
+  });
+});

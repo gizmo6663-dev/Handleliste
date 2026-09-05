@@ -13,11 +13,13 @@ export const DEFAULT_SETTINGS: Settings = {
   showSuggestionStrip: true,
   groupChecked: true,
   haptics: true,
+  starterItemWeeks: 6,
 };
 
 export function emptyState(): AppState {
   return {
     version: SCHEMA_VERSION,
+    starterItemsSince: Date.now(),
     items: [],
     list: [],
     trips: [],
@@ -66,11 +68,17 @@ export function migrate(raw: unknown): AppState {
   for (const id of DEFAULT_CATEGORY_ORDER) if (!order.includes(id)) order.push(id);
   settings.categoryOrder = order;
   settings.minObservations = Math.max(2, Number(settings.minObservations) || 2);
+  // 0 betyr «behold alltid», og er et gyldig valg — derfor ikke `||`.
+  const weeks = Number(settings.starterItemWeeks);
+  settings.starterItemWeeks = Number.isFinite(weeks) ? Math.min(52, Math.max(0, weeks)) : 6;
   settings.leadFactor = Math.min(1.2, Math.max(0.5, Number(settings.leadFactor) || 0.85));
   settings.maxSuggestions = Math.min(12, Math.max(1, Number(settings.maxSuggestions) || 6));
 
   return {
     version: SCHEMA_VERSION,
+    // Oppgraderer man fra en versjon uten startvarer, starter fristen nå.
+    starterItemsSince:
+      typeof input.starterItemsSince === 'number' ? input.starterItemsSince : Date.now(),
     items,
     list,
     trips: Array.isArray(input.trips) ? input.trips.slice(-100) : [],

@@ -95,10 +95,21 @@ export interface Settings {
   /** Flytt avkryssede varer ned i egen «I kurven»-seksjon. */
   groupChecked: boolean;
   haptics: boolean;
+  /**
+   * Uker før startvarene du aldri har brukt forsvinner fra widgeten.
+   * 0 beholder dem for alltid. Dine egne varer rammes aldri av dette —
+   * de har rytmer appen har lært, og noen av dem er sesongvarer.
+   */
+  starterItemWeeks: number;
 }
 
 export interface AppState {
   version: number;
+  /**
+   * Når startvarene ble tilgjengelige. Fristen for å rydde dem bort
+   * regnes herfra.
+   */
+  starterItemsSince?: number;
   items: CatalogItem[];
   list: ListEntry[];
   trips: Trip[];

@@ -2,8 +2,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { category, normalize } from './categories.ts';
 import { commonItems } from './common-items.ts';
 import { formatQty } from './parse.ts';
-import { describeInterval, forecast } from './suggestions.ts';
-import type { AppState } from './types.ts';
+import { DAY, describeInterval, forecast } from './suggestions.ts';
+import type { AppState, CatalogItem } from './types.ts';
 
 interface WidgetRow {
   entryId: string;
@@ -75,6 +75,36 @@ const MAX_SUGGESTIONS = 20;
 
 let pending: ReturnType<typeof setTimeout> | undefined;
 
+/**
+ * Hvor høyt en av dine egne varer skal ligge i kategorien.
+ *
+ * Varer du kjøper ofte og nylig kommer øverst; de du ikke har rørt på lenge
+ * synker — men forsvinner aldri. Det er med vilje: appen lærer også langsomme
+ * rytmer, og en sesongvare skal stå der når sesongen kommer igjen.
+ */
+export function relevance(item: CatalogItem, now: number): number {
+  const last = item.history[item.history.length - 1] ?? item.createdAt;
+  const weeksSince = Math.max(0, (now - last) / (7 * DAY));
+  // Halveringstid på åtte uker.
+  return (item.purchases + 1) * Math.pow(0.5, weeksSince / 8);
+}
+
+/**
+ * Er fristen for startvarene ute?
+ *
+ * Startvarene er et stillas: de gjør kategoriene brukbare fra dag én. Har du
+ * ikke tatt i bruk en av dem innen fristen, er den trolig ikke aktuell for
+ * deg, og den forsvinner så listene holder seg korte. Bruker du en, blir den
+ * din egen vare og blir stående for godt.
+ */
+export function starterItemsExpired(state: AppState, now: number): boolean {
+  const weeks = state.settings.starterItemWeeks;
+  if (weeks <= 0) return false;
+  const since = state.starterItemsSince;
+  if (typeof since !== 'number') return false;
+  return now - since > weeks * 7 * DAY;
+}
+
 /** Det widgetene tegner fra. Eksportert for å kunne testes. */
 export function buildWidgetSnapshot(state: AppState) {
   const items = new Map(state.items.map((item) => [item.id, item]));
@@ -131,13 +161,12 @@ export function buildWidgetSnapshot(state: AppState) {
     .filter((row): row is WidgetSuggestion => row !== null)
     .slice(0, MAX_SUGGESTIONS);
 
-  // Katalogen man blar i fra widgeten: dine egne varer først, sortert etter
-  // hva du kjøper oftest, og deretter vanlige dagligvarer du ennå ikke har
-  // brukt. Uten de vanlige ville kategoriene stått tomme helt til du hadde
-  // rukket å skrive inn nok selv.
+  // Katalogen man blar i fra widgeten: dine egne varer først, deretter
+  // startvarene du ennå ikke har brukt. Uten startvarene ville kategoriene
+  // stått tomme helt til du hadde rukket å skrive inn nok selv.
   const own: WidgetCatalogItem[] = state.items
     .filter((item) => !item.archived)
-    .sort((a, b) => b.purchases - a.purchases || a.name.localeCompare(b.name, 'nb'))
+    .sort((a, b) => relevance(b, now) - relevance(a, now) || a.name.localeCompare(b.name, 'nb'))
     .map((item) => ({
       itemId: item.id,
       icon: category(item.category).icon,
@@ -147,15 +176,17 @@ export function buildWidgetSnapshot(state: AppState) {
     }));
 
   const known = new Set(state.items.map((item) => item.key));
-  const common: WidgetCatalogItem[] = commonItems()
-    .filter((entry) => !known.has(normalize(entry.name)))
-    .map((entry) => ({
-      itemId: '',
-      icon: category(entry.category).icon,
-      name: entry.name,
-      categoryId: entry.category,
-      onList: false,
-    }));
+  const common: WidgetCatalogItem[] = starterItemsExpired(state, now)
+    ? []
+    : commonItems()
+        .filter((entry) => !known.has(normalize(entry.name)))
+        .map((entry) => ({
+          itemId: '',
+          icon: category(entry.category).icon,
+          name: entry.name,
+          categoryId: entry.category,
+          onList: false,
+        }));
 
   const catalog = [...own, ...common];
 

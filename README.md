@@ -84,7 +84,7 @@ historikken.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 66 tester for parsing, kategorisering, forslag og widgetene
+npm test           # 74 tester for parsing, kategorisering, forslag og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -161,6 +161,16 @@ en, sender widgeten navnet, og appen oppretter varen når den tømmer køen.
 Merk at dette er en annen liste enn ordboka i `categories.ts`. Ordboka finnes for å gjette
 kategori og inneholder nøkkelord som «kokt» og «mais boks» — nyttige å kjenne igjen, ubrukelige
 å bla i.
+
+**Startvarene er et stillas.** Har du ikke tatt i bruk en av dem innen seks uker (justerbart i
+innstillingene, 0 slår det av), forsvinner den, så listene holder seg korte og personlige.
+Bruker du en, blir den din egen vare og står for godt.
+
+**Dine egne varer fjernes aldri automatisk.** Appen lærer også langsomme rytmer, og en
+sesongvare — pinnekjøtt, grillkull, klementiner — skal stå der når sesongen kommer igjen; å
+slette den ville tatt med historikken som gjør at appen kan foreslå den. I stedet sorteres de:
+`relevance()` vekter antall kjøp mot hvor lenge siden sist, med åtte ukers halveringstid, så
+det du sjelden bruker synker nedover uten å bli borte.
 
 Widgetene tegner seg fra snapshotet gjennom en tjeneste per widget (`ListWidgetService`,
 `PafyllWidgetService`); det er det som gjør at innholdet kan rulle og widgeten endre størrelse.
