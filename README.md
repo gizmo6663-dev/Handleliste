@@ -84,7 +84,7 @@ historikken.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 60 tester for parsing, kategorisering, forslag og widgetene
+npm test           # 66 tester for parsing, kategorisering, forslag og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -152,10 +152,18 @@ en gjenbrukt adapter ville fylt feil visning. Det er derfor siden inngår i data
 En widget kan verken lese eller skrive WebViewens localStorage, så broen går begge veier gjennom
 `SharedPreferences` (`WidgetStore`):
 
-**Ut til widgetene.** Appen sender lista, forslagene og hele katalogen den kjenner — sortert
-etter hva som kjøpes oftest — hver gang noe endrer seg. Widgetene tegner seg fra den, gjennom en
-tjeneste per widget (`ListWidgetService`, `PafyllWidgetService`); det er det som gjør at
-innholdet kan rulle og widgeten endre størrelse.
+**Ut til widgetene.** Appen sender lista, forslagene og katalogen man blar i, hver gang noe
+endrer seg. Katalogen er dine egne varer først — sortert etter hva du kjøper oftest — og deretter
+rundt 220 vanlige norske dagligvarer fra [`common-items.ts`](src/lib/common-items.ts), slik at
+kategoriene har noe å tilby fra første stund. De vanlige varene har ingen id ennå; trykker du på
+en, sender widgeten navnet, og appen oppretter varen når den tømmer køen.
+
+Merk at dette er en annen liste enn ordboka i `categories.ts`. Ordboka finnes for å gjette
+kategori og inneholder nøkkelord som «kokt» og «mais boks» — nyttige å kjenne igjen, ubrukelige
+å bla i.
+
+Widgetene tegner seg fra snapshotet gjennom en tjeneste per widget (`ListWidgetService`,
+`PafyllWidgetService`); det er det som gjør at innholdet kan rulle og widgeten endre størrelse.
 
 **Inn fra widgetene.** Et trykk kan ikke skrive til appens lagring, så det legges i en kø
 (`WidgetActions`) mens widgeten oppdaterer sin egen visning med det samme — du ser altså
@@ -177,6 +185,7 @@ src/
   lib/
     types.ts          Datamodellen
     categories.ts     15 kategorier + norsk ordliste for autokategorisering
+    common-items.ts   ~220 vanlige dagligvarer, til å bla i fra widgeten
     parse.ts          Tolker «2 l melk» til struktur
     suggestions.ts    Intervall-læring og rangering av forslag
     storage.ts        Lagring i localStorage, med migrering av gamle data
