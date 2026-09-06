@@ -45,12 +45,15 @@
         android:textSize="14sp"
         android:paddingTop="10dp" />
 
-    <ListView
+    <GridView
         android:id="@+id/widget_collection"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@null"
-        android:dividerHeight="0dp" />
+        android:numColumns="auto_fit"
+        android:columnWidth="100dp"
+        android:stretchMode="spacingWidthUniform"
+        android:horizontalSpacing="8dp"
+        android:verticalSpacing="8dp" />
 
 </LinearLayout>

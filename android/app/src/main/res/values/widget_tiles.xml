@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tile_frukt_gront">#E5F5E7</color>
+    <color name="tile_brod">#F5EEE5</color>
+    <color name="tile_meieri">#E5EFF5</color>
+    <color name="tile_palegg">#F5F1E5</color>
+    <color name="tile_kjott_fisk">#F5E5E6</color>
+    <color name="tile_middag">#F5EAE5</color>
+    <color name="tile_torrvarer">#F5F0E5</color>
+    <color name="tile_hermetikk">#F5E7E5</color>
+    <color name="tile_frys">#E5F3F5</color>
+    <color name="tile_snacks">#F5E5F0</color>
+    <color name="tile_drikke">#ECE5F5</color>
+    <color name="tile_husholdning">#E5F5F3</color>
+    <color name="tile_hygiene">#F5E5F5</color>
+    <color name="tile_dyr">#EDF5E5</color>
+    <color name="tile_annet">#E5EAF5</color>
+    <color name="tile_avkrysset">#EDEEEB</color>
+</resources>

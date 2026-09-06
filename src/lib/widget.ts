@@ -3,7 +3,7 @@ import { category, normalize } from './categories.ts';
 import { commonItems } from './common-items.ts';
 import { formatQty } from './parse.ts';
 import { DAY, describeInterval, forecast } from './suggestions.ts';
-import type { AppState, CatalogItem } from './types.ts';
+import type { AppState, CatalogItem, CategoryId } from './types.ts';
 
 interface WidgetRow {
   entryId: string;
@@ -12,6 +12,8 @@ interface WidgetRow {
   name: string;
   qty: string;
   checked: boolean;
+  /** Gir flisen i widgeten et fargehint fra kategorien. */
+  categoryId: CategoryId;
 }
 
 interface WidgetSuggestion {
@@ -19,6 +21,7 @@ interface WidgetSuggestion {
   icon: string;
   name: string;
   why: string;
+  categoryId: CategoryId;
   /**
    * Når forslaget skal begynne å vises. Widgeten filtrerer selv på dette,
    * slik at den holder seg riktig mellom hver gang appen er oppe.
@@ -27,7 +30,7 @@ interface WidgetSuggestion {
 }
 
 interface WidgetCategory {
-  id: string;
+  id: CategoryId;
   icon: string;
   name: string;
 }
@@ -37,7 +40,7 @@ interface WidgetCatalogItem {
   itemId: string;
   icon: string;
   name: string;
-  categoryId: string;
+  categoryId: CategoryId;
   /** Ligger allerede på lista, og skal derfor ikke kunne legges til igjen. */
   onList: boolean;
 }
@@ -134,6 +137,7 @@ export function buildWidgetSnapshot(state: AppState) {
         ? formatQty(entry.qty, entry.unit)
         : '',
     checked: entry.checked,
+    categoryId: item.category,
   }));
 
   const now = Date.now();
@@ -155,6 +159,7 @@ export function buildWidgetSnapshot(state: AppState) {
         icon: category(item.category).icon,
         name: item.name,
         why: describeInterval(prediction.intervalDays),
+        categoryId: item.category,
         suggestAt: prediction.suggestAt,
       };
     })

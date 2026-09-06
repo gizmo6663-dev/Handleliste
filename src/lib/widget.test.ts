@@ -378,3 +378,36 @@ describe('rekkefølgen på dine egne varer', () => {
     expect(egne[egne.length - 1]!.name).toBe('Pinnekjøtt');
   });
 });
+
+describe('fargehint fra kategorien', () => {
+  beforeEach(() => actions.resetAll());
+
+  it('følger med hver vare på lista', () => {
+    actions.addByText('melk');
+    actions.addByText('brokkoli');
+
+    const rader = buildWidgetSnapshot(getState()).list;
+    expect(rader.find((r) => r.name === 'Melk')!.categoryId).toBe('meieri');
+    expect(rader.find((r) => r.name === 'Brokkoli')!.categoryId).toBe('frukt-gront');
+  });
+
+  it('følger med hvert forslag', () => {
+    actions.addByText('melk');
+    const itemId = getState().items[0]!.id;
+    const nå = Date.now();
+    actions.replaceState({
+      ...getState(),
+      list: [],
+      items: getState().items.map((item) =>
+        item.id === itemId ? { ...item, history: [nå - 14 * DAY, nå - 7 * DAY] } : item,
+      ),
+    });
+
+    expect(buildWidgetSnapshot(getState()).suggestions[0]!.categoryId).toBe('meieri');
+  });
+
+  it('gir hver kategori sin egen id å farge etter', () => {
+    const { categories } = buildWidgetSnapshot(getState());
+    expect(new Set(categories.map((c) => c.id)).size).toBe(categories.length);
+  });
+});

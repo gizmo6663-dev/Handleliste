@@ -29,14 +29,13 @@
             android:maxLines="2"
             android:ellipsize="end" />
         <TextView
-            android:id="@+id/row_count"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textColor="@color/widgetMuted"
-            android:textSize="11sp"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:text="+"
+            android:textColor="@color/widgetAccent"
+            android:textSize="16sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </FrameLayout>

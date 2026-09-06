@@ -3,8 +3,6 @@ package no.handleliste.app;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
-import android.text.SpannableString;
-import android.text.style.StrikethroughSpan;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
@@ -30,6 +28,32 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
     private static final int TYPE_CATEGORY = 1;
     private static final int TYPE_ITEM = 2;
     private static final int TYPE_SUGGESTION = 3;
+
+    /**
+     * Flisfarge per kategori, i samme toner som prikkene i appen.
+     * Slått opp her framfor med getIdentifier, som er treg og feilbarlig.
+     */
+    private static final java.util.Map<String, Integer> TILE_COLOURS = tileColours();
+
+    private static java.util.Map<String, Integer> tileColours() {
+        java.util.Map<String, Integer> map = new java.util.HashMap<>();
+        map.put("frukt-gront", R.drawable.tile_frukt_gront);
+        map.put("brod", R.drawable.tile_brod);
+        map.put("meieri", R.drawable.tile_meieri);
+        map.put("palegg", R.drawable.tile_palegg);
+        map.put("kjott-fisk", R.drawable.tile_kjott_fisk);
+        map.put("middag", R.drawable.tile_middag);
+        map.put("torrvarer", R.drawable.tile_torrvarer);
+        map.put("hermetikk", R.drawable.tile_hermetikk);
+        map.put("frys", R.drawable.tile_frys);
+        map.put("snacks", R.drawable.tile_snacks);
+        map.put("drikke", R.drawable.tile_drikke);
+        map.put("husholdning", R.drawable.tile_husholdning);
+        map.put("hygiene", R.drawable.tile_hygiene);
+        map.put("dyr", R.drawable.tile_dyr);
+        map.put("annet", R.drawable.tile_annet);
+        return map;
+    }
 
     private final Context context;
     private final int widgetId;
@@ -171,84 +195,93 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
     public RemoteViews getViewAt(int position) {
         JSONObject row = rows.optJSONObject(position);
         if (row == null) {
-            return new RemoteViews(context.getPackageName(), R.layout.widget_row_item);
+            return new RemoteViews(context.getPackageName(), R.layout.widget_tile_item);
         }
         switch (type) {
             case TYPE_CATEGORY:
                 return categoryTile(row);
             case TYPE_ITEM:
-                return itemRow(row);
+                return itemTile(row);
             case TYPE_SUGGESTION:
-                return suggestionRow(row);
+                return refillTile(row);
             default:
-                return listRow(row);
+                return listTile(row);
         }
     }
 
-    private RemoteViews listRow(JSONObject row) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_row_list);
+    private RemoteViews listTile(JSONObject row) {
+        RemoteViews views = tile(R.layout.widget_tile_list, row);
         boolean checked = row.optBoolean("checked", false);
-        String name = row.optString("name");
-
-        views.setTextViewText(R.id.row_icon, row.optString("icon"));
-        views.setTextViewText(R.id.row_qty, row.optString("qty"));
-        views.setTextViewText(R.id.row_check, checked ? "✓" : "○");
 
         if (checked) {
-            // Avkrysset vare beholder plassen sin, men trer i bakgrunnen.
-            SpannableString struck = new SpannableString(name);
-            struck.setSpan(new StrikethroughSpan(), 0, struck.length(), 0);
-            views.setTextViewText(R.id.row_name, struck);
+            // Tatt: flisen krymper litt og gråner, så det som gjenstår
+            // er det som fanger blikket.
+            views.setInt(R.id.row_tile, "setBackgroundResource", R.drawable.tile_avkrysset);
+            views.setViewPadding(R.id.row_root, dp(9), dp(9), dp(9), dp(9));
             views.setTextColor(R.id.row_name, color(R.color.widgetMuted));
-            views.setTextColor(R.id.row_check, color(R.color.widgetAccent));
+            views.setTextViewText(R.id.row_qty, "✓");
         } else {
-            views.setTextViewText(R.id.row_name, name);
+            views.setViewPadding(R.id.row_root, 0, 0, 0, 0);
             views.setTextColor(R.id.row_name, color(R.color.widgetText));
-            views.setTextColor(R.id.row_check, color(R.color.widgetMuted));
+            views.setTextViewText(R.id.row_qty, row.optString("qty"));
         }
 
-        Intent fillIn = new Intent();
-        fillIn.putExtra(WidgetActions.EXTRA_ENTRY_ID, row.optString("entryId"));
-        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+        fillIn(views, WidgetActions.EXTRA_ENTRY_ID, row.optString("entryId"));
         return views;
     }
 
     private RemoteViews categoryTile(JSONObject row) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_tile_category);
-        views.setTextViewText(R.id.row_icon, row.optString("icon"));
-        views.setTextViewText(R.id.row_name, row.optString("name"));
+        RemoteViews views = tile(R.layout.widget_tile_category, row);
         views.setTextViewText(R.id.row_count, String.valueOf(row.optInt("count")));
 
-        Intent fillIn = new Intent();
-        fillIn.putExtra(WidgetActions.EXTRA_PAGE, WidgetState.PAGE_ITEMS);
-        fillIn.putExtra(WidgetActions.EXTRA_CATEGORY_ID, row.optString("id"));
-        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+        Intent extra = new Intent();
+        extra.putExtra(WidgetActions.EXTRA_PAGE, WidgetState.PAGE_ITEMS);
+        extra.putExtra(WidgetActions.EXTRA_CATEGORY_ID, row.optString("id"));
+        views.setOnClickFillInIntent(R.id.row_root, extra);
         return views;
     }
 
-    private RemoteViews itemRow(JSONObject row) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_row_item);
-        views.setTextViewText(R.id.row_icon, row.optString("icon"));
-        views.setTextViewText(R.id.row_name, row.optString("name"));
-
-        Intent fillIn = new Intent();
-        fillIn.putExtra(WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
-        // Vanlige varer appen ikke har møtt før har ingen id, bare et navn.
-        fillIn.putExtra(WidgetActions.EXTRA_NAME, row.optString("name"));
-        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+    private RemoteViews itemTile(JSONObject row) {
+        RemoteViews views = tile(R.layout.widget_tile_item, row);
+        Intent extra = new Intent();
+        extra.putExtra(WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
+        // Startvarer appen ikke har møtt før har ingen id, bare et navn.
+        extra.putExtra(WidgetActions.EXTRA_NAME, row.optString("name"));
+        views.setOnClickFillInIntent(R.id.row_root, extra);
         return views;
     }
 
-    private RemoteViews suggestionRow(JSONObject row) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_row_refill);
-        views.setTextViewText(R.id.row_icon, row.optString("icon"));
-        views.setTextViewText(R.id.row_name, row.optString("name"));
+    private RemoteViews refillTile(JSONObject row) {
+        RemoteViews views = tile(R.layout.widget_tile_refill, row);
         views.setTextViewText(R.id.row_why, row.optString("why"));
-
-        Intent fillIn = new Intent();
-        fillIn.putExtra(WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
-        views.setOnClickFillInIntent(R.id.row_root, fillIn);
+        fillIn(views, WidgetActions.EXTRA_ITEM_ID, row.optString("itemId"));
         return views;
+    }
+
+    /** Felles oppsett: ikon, navn og et fargehint fra kategorien. */
+    private RemoteViews tile(int layout, JSONObject row) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), layout);
+        views.setTextViewText(R.id.row_icon, row.optString("icon"));
+        views.setTextViewText(R.id.row_name, row.optString("name"));
+
+        // Kategorisiden bærer sin egen id; de andre sidene sender categoryId.
+        String category = row.optString("categoryId", row.optString("id"));
+        Integer background = TILE_COLOURS.get(category);
+        views.setInt(
+                R.id.row_tile,
+                "setBackgroundResource",
+                background != null ? background : R.drawable.tile_annet);
+        return views;
+    }
+
+    private void fillIn(RemoteViews views, String key, String value) {
+        Intent extra = new Intent();
+        extra.putExtra(key, value);
+        views.setOnClickFillInIntent(R.id.row_root, extra);
+    }
+
+    private int dp(int value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 
     private int color(int resource) {
