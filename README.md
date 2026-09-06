@@ -84,7 +84,7 @@ historikken.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 77 tester for parsing, kategorisering, forslag og widgetene
+npm test           # 83 tester for parsing, kategorisering, forslag og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -149,10 +149,19 @@ ingen sveipenavigasjon som passer til dette — derfor trykk framfor sveip.
 av hver rad, så på en bred widget sto mesteparten av flaten ubrukt; med rutenett får man tre
 varer per rad og en langt større trykkflate per vare.
 
-Hver flis får et fargehint fra kategorien sin, i samme toner som prikkene i appen. Fargene
-ligger som én flisform per kategori (`drawable/tile_*.xml`) framfor å settes ved kjøring — det
-virker på alle Android-versjoner, og lys og mørk modus har hver sin tone. Avkryssede varer
-krymper og gråner, så det som gjenstår er det blikket faller på.
+Hver flis viser **varens eget ikon** fra [`item-icons.ts`](src/lib/item-icons.ts) — 423
+varenavn har sitt eget emoji, så banan, gulrot og tomat ser ulike ut selv om de deler hylle.
+Kategoriikonet er bare fallback; uten dette viste fire fliser på rad samme salatblad.
+
+Flisens farge er derimot kategoriens, i samme toner som prikkene i appen. Fargene ligger som én
+flisform per kategori (`drawable/tile_*.xml`) framfor å settes ved kjøring — det virker på alle
+Android-versjoner, og lys og mørk modus har hver sin tone.
+
+Handlede varer krymper, blir halvgjennomsiktige, bytter ikonet mot en grå hake og får strek
+gjennom navnet. Et emoji beholder fargene sine uansett hva teksten farges med, så uten å bytte
+det ut trakk de ferdige varene like mye blikk som de aktive. En strek øverst på flisen markerer
+grensen mot det som gjenstår — et rutenett kan ikke ha et element som spenner over hele bredden,
+så linjen ligger på flisene selv.
 
 Hver side har likevel sin egen adapter, siden radutformingen er ulik fra side til side; en
 gjenbrukt adapter ville fylt feil visning. Det er derfor siden inngår i data-URI-en
@@ -205,6 +214,7 @@ src/
     types.ts          Datamodellen
     categories.ts     15 kategorier + norsk ordliste for autokategorisering
     common-items.ts   ~220 vanlige dagligvarer, til å bla i fra widgeten
+    item-icons.ts     Emoji per vare, med kategoriikonet som fallback
     parse.ts          Tolker «2 l melk» til struktur
     suggestions.ts    Intervall-læring og rangering av forslag
     storage.ts        Lagring i localStorage, med migrering av gamle data
