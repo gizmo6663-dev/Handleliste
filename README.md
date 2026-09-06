@@ -84,7 +84,7 @@ historikken.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 74 tester for parsing, kategorisering, forslag og widgetene
+npm test           # 77 tester for parsing, kategorisering, forslag og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -145,8 +145,17 @@ kategoriene som et rutenett, og varene i én kategori. Tilbake-knappen tar deg e
 Samsungs stabling av widgeter er en launcher-funksjon apper ikke styrer, og RemoteViews har
 ingen sveipenavigasjon som passer til dette — derfor trykk framfor sveip.
 
-Hver side har sin egen adapter, siden kategorisiden er et `GridView` og de andre er `ListView`;
-en gjenbrukt adapter ville fylt feil visning. Det er derfor siden inngår i data-URI-en
+**Alle sidene er rutenett** med kvadratiske fliser på 100 dp. En liste bruker bare venstre del
+av hver rad, så på en bred widget sto mesteparten av flaten ubrukt; med rutenett får man tre
+varer per rad og en langt større trykkflate per vare.
+
+Hver flis får et fargehint fra kategorien sin, i samme toner som prikkene i appen. Fargene
+ligger som én flisform per kategori (`drawable/tile_*.xml`) framfor å settes ved kjøring — det
+virker på alle Android-versjoner, og lys og mørk modus har hver sin tone. Avkryssede varer
+krymper og gråner, så det som gjenstår er det blikket faller på.
+
+Hver side har likevel sin egen adapter, siden radutformingen er ulik fra side til side; en
+gjenbrukt adapter ville fylt feil visning. Det er derfor siden inngår i data-URI-en
 `setRemoteAdapter` får.
 
 En widget kan verken lese eller skrive WebViewens localStorage, så broen går begge veier gjennom
