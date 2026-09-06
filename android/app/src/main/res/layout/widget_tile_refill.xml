@@ -1,42 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row_root"
     android:layout_width="match_parent"
-    android:layout_height="100dp">
+    android:layout_height="100dp"
+    android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/row_tile"
+    <FrameLayout
+        android:id="@+id/row_pad"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="6dp"
-        android:background="@drawable/tile_annet">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
-        <TextView
-            android:id="@+id/row_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="24sp" />
-        <TextView
-            android:id="@+id/row_name"
+        <LinearLayout
+            android:id="@+id/row_tile"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
             android:gravity="center"
-            android:paddingTop="3dp"
-            android:textColor="@color/widgetText"
-            android:textSize="13sp"
-            android:maxLines="2"
-            android:ellipsize="end" />
-        <TextView
-            android:id="@+id/row_why"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:textColor="@color/widgetMuted"
-            android:textSize="10sp"
-            android:maxLines="1"
-            android:ellipsize="end" />
-    </LinearLayout>
+            android:padding="6dp"
+            android:background="@drawable/tile_annet">
 
-</FrameLayout>
+            <TextView
+                android:id="@+id/row_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="23sp" />
+            <TextView
+                android:id="@+id/row_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingTop="3dp"
+                android:textColor="@color/widgetText"
+                android:textSize="14sp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+            <TextView
+                android:id="@+id/row_why"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="@color/widgetMuted"
+                android:textSize="10sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

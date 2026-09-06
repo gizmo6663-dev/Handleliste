@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { category, normalize } from './categories.ts';
 import { commonItems } from './common-items.ts';
+import { itemIcon } from './item-icons.ts';
 import { formatQty } from './parse.ts';
 import { DAY, describeInterval, forecast } from './suggestions.ts';
 import type { AppState, CatalogItem, CategoryId } from './types.ts';
@@ -130,7 +131,7 @@ export function buildWidgetSnapshot(state: AppState) {
   const list: WidgetRow[] = rows.map(({ entry, item }) => ({
     entryId: entry.id,
     itemId: item.id,
-    icon: category(item.category).icon,
+    icon: itemIcon(item.name, item.category),
     name: item.name,
     qty:
       entry.qty > 1 || (entry.unit && entry.unit !== 'stk')
@@ -156,7 +157,7 @@ export function buildWidgetSnapshot(state: AppState) {
       if (prediction.urgency > 3.5) return null;
       return {
         itemId: item.id,
-        icon: category(item.category).icon,
+        icon: itemIcon(item.name, item.category),
         name: item.name,
         why: describeInterval(prediction.intervalDays),
         categoryId: item.category,
@@ -174,7 +175,7 @@ export function buildWidgetSnapshot(state: AppState) {
     .sort((a, b) => relevance(b, now) - relevance(a, now) || a.name.localeCompare(b.name, 'nb'))
     .map((item) => ({
       itemId: item.id,
-      icon: category(item.category).icon,
+      icon: itemIcon(item.name, item.category),
       name: item.name,
       categoryId: item.category,
       onList: inList.has(item.id),
@@ -187,7 +188,7 @@ export function buildWidgetSnapshot(state: AppState) {
         .filter((entry) => !known.has(normalize(entry.name)))
         .map((entry) => ({
           itemId: '',
-          icon: category(entry.category).icon,
+          icon: itemIcon(entry.name, entry.category),
           name: entry.name,
           categoryId: entry.category,
           onList: false,
