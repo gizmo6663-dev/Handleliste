@@ -15,5 +15,6 @@
     <color name="tile_hygiene">#362136</color>
     <color name="tile_dyr">#2B3621</color>
     <color name="tile_annet">#212836</color>
-    <color name="tile_avkrysset">#1B1E21</color>
+    <color name="tile_avkrysset">#99232629</color>
+    <color name="tileSkille">#33383C</color>
 </resources>

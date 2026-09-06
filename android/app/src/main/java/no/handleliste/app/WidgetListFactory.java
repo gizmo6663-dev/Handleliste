@@ -3,6 +3,8 @@ package no.handleliste.app;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
+import android.text.SpannableString;
+import android.text.style.StrikethroughSpan;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
@@ -28,6 +30,9 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
     private static final int TYPE_CATEGORY = 1;
     private static final int TYPE_ITEM = 2;
     private static final int TYPE_SUGGESTION = 3;
+
+    /** Markerer skilleflisen mellom det som gjenstår og det som er handlet. */
+    private static final String SEPARATOR = "skille";
 
     /**
      * Flisfarge per kategori, i samme toner som prikkene i appen.
@@ -96,8 +101,7 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
             rows = itemsIn(snapshot, WidgetState.category(context, widgetId));
         } else {
             type = TYPE_LIST;
-            JSONArray list = snapshot.optJSONArray("list");
-            rows = list != null ? list : new JSONArray();
+            rows = withSeparator(snapshot.optJSONArray("list"));
         }
     }
 
@@ -126,6 +130,39 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
             }
         }
         return due;
+    }
+
+    /**
+     * Lista med en skillelinje der det handlede begynner.
+     *
+     * Varene kommer allerede sortert med det som gjenstår først, så skillet
+     * settes inn ved den første avkryssede. Uten det flyter de to gruppene
+     * sammen i rutenettet.
+     */
+    static JSONArray withSeparator(JSONArray list) {
+        JSONArray result = new JSONArray();
+        if (list == null) {
+            return result;
+        }
+        boolean placed = false;
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject row = list.optJSONObject(i);
+            if (row == null) {
+                continue;
+            }
+            if (!placed && row.optBoolean("checked", false)) {
+                JSONObject separator = new JSONObject();
+                try {
+                    separator.put(SEPARATOR, true);
+                } catch (org.json.JSONException ignored) {
+                    // Uten skillet er lista fortsatt riktig, bare mindre tydelig.
+                }
+                result.put(separator);
+                placed = true;
+            }
+            result.put(row);
+        }
+        return result;
     }
 
     /** Kategoriene som har varer å legge til, med antall. */
@@ -197,6 +234,9 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
         if (row == null) {
             return new RemoteViews(context.getPackageName(), R.layout.widget_tile_item);
         }
+        if (row.optBoolean(SEPARATOR, false)) {
+            return new RemoteViews(context.getPackageName(), R.layout.widget_tile_separator);
+        }
         switch (type) {
             case TYPE_CATEGORY:
                 return categoryTile(row);
@@ -214,12 +254,20 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
         boolean checked = row.optBoolean("checked", false);
 
         if (checked) {
-            // Tatt: flisen krymper litt og gråner, så det som gjenstår
-            // er det som fanger blikket.
+            // Tatt: flisen krymper, blir halvgjennomsiktig, og kategoriikonet
+            // vikes for en grå hake. Et emoji beholder fargene sine uansett hva
+            // teksten farges med, og trakk blikket like mye som de aktive
+            // flisene helt til det ble byttet ut.
             views.setInt(R.id.row_tile, "setBackgroundResource", R.drawable.tile_avkrysset);
-            views.setViewPadding(R.id.row_root, dp(9), dp(9), dp(9), dp(9));
+            views.setViewPadding(R.id.row_root, dp(10), dp(10), dp(10), dp(10));
+            views.setTextViewText(R.id.row_icon, "✓");
+            views.setTextColor(R.id.row_icon, color(R.color.widgetMuted));
+
+            SpannableString struck = new SpannableString(row.optString("name"));
+            struck.setSpan(new StrikethroughSpan(), 0, struck.length(), 0);
+            views.setTextViewText(R.id.row_name, struck);
             views.setTextColor(R.id.row_name, color(R.color.widgetMuted));
-            views.setTextViewText(R.id.row_qty, "✓");
+            views.setTextViewText(R.id.row_qty, "");
         } else {
             views.setViewPadding(R.id.row_root, 0, 0, 0, 0);
             views.setTextColor(R.id.row_name, color(R.color.widgetText));
@@ -307,8 +355,8 @@ class WidgetListFactory implements RemoteViewsService.RemoteViewsFactory {
 
     @Override
     public int getViewTypeCount() {
-        // Én per radutforming, siden samme fabrikk betjener alle sidene.
-        return 4;
+        // Én per flisutforming — de fire innholdstypene pluss skillet.
+        return 5;
     }
 
     @Override
