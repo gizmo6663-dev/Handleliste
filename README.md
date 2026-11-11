@@ -105,7 +105,7 @@ forslagene også av det du planlegger å lage.
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 106 tester for parsing, kategorisering, forslag, matplan og widgetene
+npm test           # 109 tester for parsing, kategorisering, forslag, matplan og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```

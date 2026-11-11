@@ -592,65 +592,79 @@ export const actions = {
   },
 
   /**
-   * Legger alt som trengs til et måltid på handlelista.
+   * Legger alt som trengs til ett eller flere måltider på handlelista.
    *
    * Dette er broen mellom matplanen og resten av appen: varene får
    * historikk som alt annet, så rytmen læres av det du faktisk planlegger.
    * Varer som allerede ligger på lista hoppes over.
+   *
+   * Hele uka legges inn i én operasjon, slik at «Angre» tar alt sammen og
+   * ikke bare den siste retten.
    */
-  addMealToList(mealId: string): number {
-    const meal = state.meals.find((candidate) => candidate.id === mealId);
-    if (!meal) return 0;
-    const recipe = state.recipes.find((candidate) => candidate.id === meal.recipeId);
-    if (!recipe) return 0;
-
+  addMealsToList(mealIds: readonly string[]): number {
     const now = Date.now();
-    const alreadyOnList = new Set(state.list.map((entry) => entry.itemId));
-    const toAdd = recipe.items.filter((entry) => !alreadyOnList.has(entry.itemId));
-    if (toAdd.length === 0) {
-      // Alt er på lista fra før; merk måltidet som handlet likevel.
-      commit({
-        ...state,
-        meals: state.meals.map((candidate) =>
-          candidate.id === mealId ? { ...candidate, shoppedAt: now } : candidate,
-        ),
-      });
-      return 0;
-    }
+    const planlagt = mealIds
+      .map((id) => state.meals.find((candidate) => candidate.id === id))
+      .filter((meal): meal is PlannedMeal => meal !== undefined);
+    if (planlagt.length === 0) return 0;
 
+    // Varer som alt ligger på lista, pluss de vi legger inn underveis, slik at
+    // to retter med samme løk ikke gir to løk.
+    const dekket = new Set(state.list.map((entry) => entry.itemId));
     const entries: ListEntry[] = [];
-    for (const entry of toAdd) {
-      const item = state.items.find((candidate) => candidate.id === entry.itemId);
-      if (!item) continue;
-      const listEntry: ListEntry = {
-        id: newId(),
-        itemId: entry.itemId,
-        qty: entry.qty ?? item.defaultQty ?? 1,
-        checked: false,
-        addedAt: now,
-        source: 'matplan',
-      };
-      if (entry.unit ?? item.unit) listEntry.unit = entry.unit ?? item.unit;
-      entries.push(listEntry);
-    }
+    const navn: string[] = [];
 
-    const addedIds = new Set(entries.map((entry) => entry.itemId));
+    for (const meal of planlagt) {
+      const recipe = state.recipes.find((candidate) => candidate.id === meal.recipeId);
+      if (!recipe) continue;
+      navn.push(recipe.name);
+      for (const del of recipe.items) {
+        if (dekket.has(del.itemId)) continue;
+        const item = state.items.find((candidate) => candidate.id === del.itemId);
+        if (!item) continue;
+        dekket.add(del.itemId);
+        const listEntry: ListEntry = {
+          id: newId(),
+          itemId: del.itemId,
+          qty: del.qty ?? item.defaultQty ?? 1,
+          checked: false,
+          addedAt: now,
+          source: 'matplan',
+        };
+        if (del.unit ?? item.unit) listEntry.unit = del.unit ?? item.unit;
+        entries.push(listEntry);
+      }
+    }
+    if (navn.length === 0) return 0;
+
+    const handlet = new Set(planlagt.map((meal) => meal.id));
+    const lagtTil = new Set(entries.map((entry) => entry.itemId));
+    const label =
+      navn.length === 1
+        ? `La ${navn[0]!.toLowerCase()} på lista`
+        : `La ${navn.length} retter på lista`;
+
     commit(
       {
         ...state,
         items: state.items.map((item) =>
-          addedIds.has(item.id)
+          lagtTil.has(item.id)
             ? { ...item, history: [...item.history, now], snoozedUntil: undefined }
             : item,
         ),
         list: [...state.list, ...entries],
-        meals: state.meals.map((candidate) =>
-          candidate.id === mealId ? { ...candidate, shoppedAt: now } : candidate,
+        meals: state.meals.map((meal) =>
+          handlet.has(meal.id) ? { ...meal, shoppedAt: now } : meal,
         ),
       },
-      `La ${recipe.name.toLowerCase()} på lista`,
+      label,
     );
     return entries.length;
+  },
+
+  /** Ett måltid på lista. */
+  addMealToList(mealId: string): number {
+    return actions.addMealsToList([mealId]);
   },
 
   /**

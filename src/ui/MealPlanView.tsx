@@ -78,8 +78,7 @@ export function MealPlanView() {
             className="btn primary block"
             style={{ marginTop: 12 }}
             onClick={() => {
-              let antall = 0;
-              for (const meal of uhandlet) antall += actions.addMealToList(meal.id);
+              const antall = actions.addMealsToList(uhandlet.map((meal) => meal.id));
               tap([10, 40, 14]);
               toast(
                 antall > 0

@@ -197,6 +197,40 @@ describe('fra meny til handleliste', () => {
     expect(getState().list).toHaveLength(3);
   });
 
+  it('legger hele uka inn i én operasjon, så angre tar alt', () => {
+    const { mealId } = taco();
+    const pizza = actions.createRecipe('Pizza')!;
+    actions.addRecipeItem(pizza.id, 'ost', 'ingrediens');
+    const andre = actions.planMeal('2026-11-14', pizza.id)!;
+
+    expect(actions.addMealsToList([mealId, andre.id])).toBe(4);
+    expect(getState().list).toHaveLength(4);
+
+    actions.undo();
+    expect(getState().list).toHaveLength(0);
+    expect(getState().meals.every((meal) => meal.shoppedAt === undefined)).toBe(true);
+  });
+
+  it('legger en delt vare inn bare én gang', () => {
+    const en = actions.createRecipe('Omelett')!;
+    actions.addRecipeItem(en.id, 'egg', 'ingrediens');
+    const to = actions.createRecipe('Eggerøre')!;
+    actions.addRecipeItem(to.id, 'egg', 'ingrediens');
+    const a = actions.planMeal('2026-11-13', en.id)!;
+    const b = actions.planMeal('2026-11-14', to.id)!;
+
+    expect(actions.addMealsToList([a.id, b.id])).toBe(1);
+    expect(getState().list).toHaveLength(1);
+    // Begge måltidene regnes som handlet, selv om bare det ene ga en ny linje.
+    expect(getState().meals.every((meal) => meal.shoppedAt)).toBe(true);
+  });
+
+  it('merker varene med at de kom fra menyen', () => {
+    const { mealId } = taco();
+    actions.addMealToList(mealId);
+    expect(getState().list.every((entry) => entry.source === 'matplan')).toBe(true);
+  });
+
   it('tar med mengden fra oppskriften', () => {
     const rett = actions.createRecipe('Bolognese')!;
     actions.addRecipeItem(rett.id, '400 g kjøttdeig');
