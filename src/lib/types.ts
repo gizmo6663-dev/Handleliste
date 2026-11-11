@@ -78,6 +78,43 @@ export interface Trip {
   }>;
 }
 
+/** Om en vare hører til selve retten eller til tilbehøret. */
+export type RecipePart = 'ingrediens' | 'tilbehor';
+
+/** En vare som inngår i en rett. Peker på katalogen, så kategori og
+ *  læring blir den samme som ellers i appen. */
+export interface RecipeItem {
+  itemId: string;
+  part: RecipePart;
+  /** Mengde til én omgang av retten, hvis du vil holde styr på det. */
+  qty?: number;
+  unit?: string;
+}
+
+/** En rett du har laget selv. */
+export interface Recipe {
+  id: string;
+  name: string;
+  /** Normalisert navn, for å unngå to retter med samme navn. */
+  key: string;
+  items: RecipeItem[];
+  note?: string;
+  createdAt: number;
+  /** Hvor mange ganger retten har stått på menyen. */
+  timesPlanned: number;
+}
+
+/** En rett satt opp på en bestemt dag. */
+export interface PlannedMeal {
+  id: string;
+  /** Dato som «ÅÅÅÅ-MM-DD», i din egen tidssone. */
+  date: string;
+  recipeId: string;
+  note?: string;
+  /** Satt når ingrediensene er lagt på handlelista, så man ikke gjør det dobbelt. */
+  shoppedAt?: number;
+}
+
 export type ThemePreference = 'system' | 'lys' | 'mork';
 
 export interface Settings {
@@ -113,5 +150,9 @@ export interface AppState {
   items: CatalogItem[];
   list: ListEntry[];
   trips: Trip[];
+  /** Rettene du har laget. */
+  recipes: Recipe[];
+  /** Hva som står på menyen hvilke dager. */
+  meals: PlannedMeal[];
   settings: Settings;
 }

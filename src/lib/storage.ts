@@ -23,6 +23,8 @@ export function emptyState(): AppState {
     items: [],
     list: [],
     trips: [],
+    recipes: [],
+    meals: [],
     settings: { ...DEFAULT_SETTINGS, categoryOrder: [...DEFAULT_CATEGORY_ORDER] },
   };
 }
@@ -60,6 +62,33 @@ export function migrate(raw: unknown): AppState {
       )
     : [];
 
+  // Rettene må ha et navn og en liste med varer, og varene må finnes.
+  const recipes = Array.isArray(input.recipes)
+    ? input.recipes
+        .filter((recipe) => recipe && typeof recipe.id === 'string' && typeof recipe.name === 'string')
+        .map((recipe) => ({
+          ...recipe,
+          key: typeof recipe.key === 'string' ? recipe.key : recipe.name.toLowerCase(),
+          items: Array.isArray(recipe.items)
+            ? recipe.items.filter((entry) => entry && itemIds.has(entry.itemId as string))
+            : [],
+          timesPlanned: typeof recipe.timesPlanned === 'number' ? recipe.timesPlanned : 0,
+          createdAt: typeof recipe.createdAt === 'number' ? recipe.createdAt : Date.now(),
+        }))
+    : [];
+
+  // En dag på menyen må peke på en rett som fortsatt finnes.
+  const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+  const meals = Array.isArray(input.meals)
+    ? input.meals.filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test(meal.date as string) &&
+          recipeIds.has(meal.recipeId as string),
+      )
+    : [];
+
   const settings = { ...base.settings, ...(input.settings ?? {}) };
   // Rekkefølgen må alltid inneholde alle kategorier, uten duplikater.
   const order = (settings.categoryOrder ?? []).filter(
@@ -82,6 +111,8 @@ export function migrate(raw: unknown): AppState {
     items,
     list,
     trips: Array.isArray(input.trips) ? input.trips.slice(-100) : [],
+    recipes,
+    meals,
     settings,
   };
 }

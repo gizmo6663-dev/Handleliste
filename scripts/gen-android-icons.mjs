@@ -19,8 +19,11 @@ function findChrome() {
   for (const base of bases) {
     if (!existsSync(base)) continue;
     for (const entry of readdirSync(base)) {
-      const candidate = join(base, entry, 'chrome-linux', 'chrome');
-      if (existsSync(candidate)) return candidate;
+      // Playwright har hatt både chrome-linux og chrome-linux64.
+      for (const dir of ['chrome-linux64', 'chrome-linux']) {
+        const candidate = join(base, entry, dir, 'chrome');
+        if (existsSync(candidate)) return candidate;
+      }
     }
   }
   for (const candidate of ['/usr/bin/chromium', '/usr/bin/google-chrome']) {

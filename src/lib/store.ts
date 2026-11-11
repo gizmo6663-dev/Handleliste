@@ -10,6 +10,10 @@ import type {
   CategoryId,
   EntrySource,
   ListEntry,
+  PlannedMeal,
+  Recipe,
+  RecipeItem,
+  RecipePart,
   Settings,
   Trip,
 } from './types.ts';
@@ -101,6 +105,20 @@ function createItem(name: string, unit?: string): CatalogItem {
   };
   if (unit) item.unit = unit;
   return item;
+}
+
+/**
+ * Finner en katalogvare, eller lager den.
+ *
+ * Brukes når en vare settes inn i en oppskrift. Historikken røres ikke —
+ * å skrive «løk» i en rett er ikke det samme som å trenge løk, og
+ * forslagsmotoren skal bare lære av det som faktisk havner på lista.
+ */
+function ensureItem(items: CatalogItem[], name: string): { items: CatalogItem[]; item: CatalogItem } {
+  const existing = findItemByName(items, name);
+  if (existing) return { items, item: existing };
+  const item = createItem(name);
+  return { items: [...items, item], item };
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +424,233 @@ export const actions = {
     syncWidget(state);
     emit();
     return true;
+  },
+
+  // -------------------------------------------------------------------------
+  // Matplan
+  // -------------------------------------------------------------------------
+
+  /** Lager en ny rett. Finnes navnet fra før, gjenbrukes den retten. */
+  createRecipe(name: string): Recipe | null {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+
+    const key = normalize(trimmed);
+    const existing = state.recipes.find((recipe) => recipe.key === key);
+    if (existing) return existing;
+
+    const recipe: Recipe = {
+      id: newId(),
+      name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1),
+      key,
+      items: [],
+      createdAt: Date.now(),
+      timesPlanned: 0,
+    };
+    commit({ ...state, recipes: [...state.recipes, recipe] }, `Lagde ${recipe.name.toLowerCase()}`);
+    return recipe;
+  },
+
+  renameRecipe(recipeId: string, name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    commit({
+      ...state,
+      recipes: state.recipes.map((recipe) =>
+        recipe.id === recipeId ? { ...recipe, name: trimmed, key: normalize(trimmed) } : recipe,
+      ),
+    });
+  },
+
+  setRecipeNote(recipeId: string, note: string): void {
+    commit({
+      ...state,
+      recipes: state.recipes.map((recipe) =>
+        recipe.id === recipeId ? { ...recipe, note: note.trim() || undefined } : recipe,
+      ),
+    });
+  },
+
+  /**
+   * Setter en vare inn i en rett, som ingrediens eller tilbehør.
+   * Kjenner ikke appen varen, opprettes den — med kategori gjettet som ellers.
+   */
+  addRecipeItem(recipeId: string, raw: string, part: RecipePart = 'ingrediens'): void {
+    const parsed = parseInput(raw);
+    if (!parsed.name.trim()) return;
+
+    const recipe = state.recipes.find((candidate) => candidate.id === recipeId);
+    if (!recipe) return;
+
+    const { items, item } = ensureItem([...state.items], parsed.name);
+    if (recipe.items.some((entry) => entry.itemId === item.id)) return;
+
+    const entry: RecipeItem = { itemId: item.id, part };
+    if (parsed.qty > 1) entry.qty = parsed.qty;
+    if (parsed.unit ?? item.unit) entry.unit = parsed.unit ?? item.unit;
+
+    commit(
+      {
+        ...state,
+        items,
+        recipes: state.recipes.map((candidate) =>
+          candidate.id === recipeId ? { ...candidate, items: [...candidate.items, entry] } : candidate,
+        ),
+      },
+      `La ${item.name.toLowerCase()} i ${recipe.name.toLowerCase()}`,
+    );
+  },
+
+  removeRecipeItem(recipeId: string, itemId: string): void {
+    commit(
+      {
+        ...state,
+        recipes: state.recipes.map((recipe) =>
+          recipe.id === recipeId
+            ? { ...recipe, items: recipe.items.filter((entry) => entry.itemId !== itemId) }
+            : recipe,
+        ),
+      },
+      'Fjernet fra retten',
+    );
+  },
+
+  /** Flytter en vare mellom ingrediens og tilbehør. */
+  setRecipeItemPart(recipeId: string, itemId: string, part: RecipePart): void {
+    commit({
+      ...state,
+      recipes: state.recipes.map((recipe) =>
+        recipe.id === recipeId
+          ? {
+              ...recipe,
+              items: recipe.items.map((entry) =>
+                entry.itemId === itemId ? { ...entry, part } : entry,
+              ),
+            }
+          : recipe,
+      ),
+    });
+  },
+
+  /** Sletter en rett, og tar den av menyen de dagene den sto. */
+  deleteRecipe(recipeId: string): void {
+    const recipe = state.recipes.find((candidate) => candidate.id === recipeId);
+    commit(
+      {
+        ...state,
+        recipes: state.recipes.filter((candidate) => candidate.id !== recipeId),
+        meals: state.meals.filter((meal) => meal.recipeId !== recipeId),
+      },
+      recipe ? `Slettet ${recipe.name.toLowerCase()}` : 'Slettet rett',
+    );
+  },
+
+  /** Setter en rett på menyen en gitt dag. */
+  planMeal(date: string, recipeId: string): PlannedMeal | null {
+    const recipe = state.recipes.find((candidate) => candidate.id === recipeId);
+    if (!recipe) return null;
+
+    const meal: PlannedMeal = { id: newId(), date, recipeId };
+    commit(
+      {
+        ...state,
+        meals: [...state.meals, meal],
+        recipes: state.recipes.map((candidate) =>
+          candidate.id === recipeId
+            ? { ...candidate, timesPlanned: candidate.timesPlanned + 1 }
+            : candidate,
+        ),
+      },
+      `Satte opp ${recipe.name.toLowerCase()}`,
+    );
+    return meal;
+  },
+
+  unplanMeal(mealId: string): void {
+    const meal = state.meals.find((candidate) => candidate.id === mealId);
+    if (!meal) return;
+    commit(
+      {
+        ...state,
+        meals: state.meals.filter((candidate) => candidate.id !== mealId),
+        recipes: state.recipes.map((recipe) =>
+          recipe.id === meal.recipeId
+            ? { ...recipe, timesPlanned: Math.max(0, recipe.timesPlanned - 1) }
+            : recipe,
+        ),
+      },
+      'Tok av menyen',
+    );
+  },
+
+  /** Flytter et måltid til en annen dag. */
+  moveMeal(mealId: string, date: string): void {
+    commit({
+      ...state,
+      meals: state.meals.map((meal) => (meal.id === mealId ? { ...meal, date } : meal)),
+    });
+  },
+
+  /**
+   * Legger alt som trengs til et måltid på handlelista.
+   *
+   * Dette er broen mellom matplanen og resten av appen: varene får
+   * historikk som alt annet, så rytmen læres av det du faktisk planlegger.
+   * Varer som allerede ligger på lista hoppes over.
+   */
+  addMealToList(mealId: string): number {
+    const meal = state.meals.find((candidate) => candidate.id === mealId);
+    if (!meal) return 0;
+    const recipe = state.recipes.find((candidate) => candidate.id === meal.recipeId);
+    if (!recipe) return 0;
+
+    const now = Date.now();
+    const alreadyOnList = new Set(state.list.map((entry) => entry.itemId));
+    const toAdd = recipe.items.filter((entry) => !alreadyOnList.has(entry.itemId));
+    if (toAdd.length === 0) {
+      // Alt er på lista fra før; merk måltidet som handlet likevel.
+      commit({
+        ...state,
+        meals: state.meals.map((candidate) =>
+          candidate.id === mealId ? { ...candidate, shoppedAt: now } : candidate,
+        ),
+      });
+      return 0;
+    }
+
+    const entries: ListEntry[] = [];
+    for (const entry of toAdd) {
+      const item = state.items.find((candidate) => candidate.id === entry.itemId);
+      if (!item) continue;
+      const listEntry: ListEntry = {
+        id: newId(),
+        itemId: entry.itemId,
+        qty: entry.qty ?? item.defaultQty ?? 1,
+        checked: false,
+        addedAt: now,
+        source: 'gjentakelse',
+      };
+      if (entry.unit ?? item.unit) listEntry.unit = entry.unit ?? item.unit;
+      entries.push(listEntry);
+    }
+
+    const addedIds = new Set(entries.map((entry) => entry.itemId));
+    commit(
+      {
+        ...state,
+        items: state.items.map((item) =>
+          addedIds.has(item.id)
+            ? { ...item, history: [...item.history, now], snoozedUntil: undefined }
+            : item,
+        ),
+        list: [...state.list, ...entries],
+        meals: state.meals.map((candidate) =>
+          candidate.id === mealId ? { ...candidate, shoppedAt: now } : candidate,
+        ),
+      },
+      `La ${recipe.name.toLowerCase()} på lista`,
+    );
+    return entries.length;
   },
 
   /**

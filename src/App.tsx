@@ -3,18 +3,20 @@ import { buildSuggestions } from './lib/suggestions.ts';
 import { App as CapacitorApp } from '@capacitor/app';
 import { actions, useApp } from './lib/store.ts';
 import { InsightsView } from './ui/InsightsView.tsx';
+import { MealPlanView } from './ui/MealPlanView.tsx';
 import { ListView } from './ui/ListView.tsx';
 import { SettingsView } from './ui/SettingsView.tsx';
 import { SuggestionsView } from './ui/SuggestionsView.tsx';
 import { WidgetView } from './ui/WidgetView.tsx';
 import { Toaster, toast } from './ui/toast.tsx';
-import { IconChart, IconGear, IconList, IconSpark } from './ui/icons.tsx';
+import { IconChart, IconGear, IconList, IconMeal, IconSpark } from './ui/icons.tsx';
 
-type Route = 'liste' | 'forslag' | 'innsikt' | 'innstillinger' | 'widget';
+type Route = 'liste' | 'meny' | 'forslag' | 'innsikt' | 'innstillinger' | 'widget';
 
 const ROUTES: Record<string, Route> = {
   '': 'liste',
   '/': 'liste',
+  '/meny': 'meny',
   '/forslag': 'forslag',
   '/innsikt': 'innsikt',
   '/innstillinger': 'innstillinger',
@@ -133,12 +135,14 @@ export function App() {
   return (
     <div className="app">
       {route === 'liste' && <ListView navigate={navigate} />}
+      {route === 'meny' && <MealPlanView />}
       {route === 'forslag' && <SuggestionsView />}
       {route === 'innsikt' && <InsightsView />}
       {route === 'innstillinger' && <SettingsView />}
 
       <nav className="nav" aria-label="Hovedmeny">
         <NavItem route="liste" current={route} label="Liste" icon={<IconList />} />
+        <NavItem route="meny" current={route} label="Meny" icon={<IconMeal />} />
         <NavItem
           route="forslag"
           current={route}
@@ -147,7 +151,7 @@ export function App() {
           badge={suggestionCount}
         />
         <NavItem route="innsikt" current={route} label="Innsikt" icon={<IconChart />} />
-        <NavItem route="innstillinger" current={route} label="Innstillinger" icon={<IconGear />} />
+        <NavItem route="innstillinger" current={route} label="Oppsett" icon={<IconGear />} />
       </nav>
 
       <Toaster />

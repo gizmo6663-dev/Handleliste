@@ -304,18 +304,26 @@ h3 {
 
 .nav-item {
   flex: 1;
-  max-width: 130px;
+  min-width: 0;
+  max-width: 120px;
   display: grid;
   justify-items: center;
   gap: 2px;
   padding: 6px 4px 4px;
   border-radius: var(--radius);
   color: var(--text-faint);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 560;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   transition: color 0.15s var(--ease), background 0.15s var(--ease);
   position: relative;
+}
+
+.nav-item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-item svg {
@@ -1172,4 +1180,135 @@ h3 {
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ------------------------------------------------------------- Matplan -- */
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 4px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-pill);
+}
+
+.week-nav .icon-button:first-child svg {
+  transform: rotate(180deg);
+}
+
+.week-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 560;
+  color: var(--text-muted);
+}
+
+.day {
+  margin-top: 18px;
+}
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 4px 7px;
+  font-size: 0.78rem;
+  font-weight: 680;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.day-date {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+/* Dagen man står i skal være lett å finne igjen. */
+.day.today .day-head {
+  color: var(--accent-text);
+}
+
+.day.today .day-body {
+  border-color: var(--accent-border);
+}
+
+.day-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.meal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s var(--ease);
+}
+
+.meal:hover {
+  background: var(--surface-hover);
+}
+
+.meal + .meal {
+  border-top: 1px solid var(--border);
+}
+
+.meal-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 520;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meal-meta {
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  flex: none;
+}
+
+/* Handlet måltid trenger ikke mer oppmerksomhet. */
+.meal.shopped .meal-name {
+  color: var(--text-muted);
+}
+
+.meal.shopped .meal-meta {
+  color: var(--accent-text);
+}
+
+.meal-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 14px;
+  width: 100%;
+  text-align: left;
+  font-size: 0.88rem;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border);
+  transition: color 0.15s var(--ease), background 0.15s var(--ease);
+}
+
+.day-body > .meal-add:first-child {
+  border-top: none;
+}
+
+.meal-add:hover {
+  color: var(--accent-text);
+  background: var(--surface-hover);
 }

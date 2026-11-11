@@ -41,6 +41,10 @@ pleier å kjøpe dem. Begge ruller og har store trykkflater. I nettleseren finne
 visning på `#/widget`, og lenkeformatet `#/legg-til?vare=melk` lar deg legge til varer fra
 delingsmenyen i andre apper.
 
+**Matplanlegger.** En uke av gangen, mandag til søndag. Lag dine egne retter med
+ingredienser og tilbehør hver for seg, sett dem opp på dagene du vil spise dem, og legg hele
+uka på handlelista med ett trykk. Varer som allerede står på lista legges ikke inn på nytt.
+
 **Elegant og tilgjengelig.** Lyst og mørkt tema, store trykkflater, respekt for
 `prefers-reduced-motion`, skjermleservennlige etiketter, angre på alt som fjernes.
 
@@ -79,12 +83,29 @@ historikken.
 
 ---
 
+## Matplanleggeren
+
+Fanen **Meny** viser én uke av gangen, mandag til søndag, med dagens dato markert.
+
+**Rettene er dine egne.** Skriv inn et navn, og retten er opprettet. Inni retten legger du til
+varer i to adskilte bolker: *ingredienser* er det retten består av, *tilbehør* er det som
+følger med ved siden av. En vare kan flyttes mellom bolkene med pilknappen og fjernes med
+søppelbøtta. Varene gjenbruker vareregisteret ditt, så kategori og ikon følger med — men å
+skrive «løk» i en oppskrift teller *ikke* som et kjøp, og rører derfor ikke rytmelæringen.
+
+**Fra meny til liste.** «Legg på handlelista» tar med alle ingrediensene og tilbehøret til én
+rett; «Legg hele uka på lista» tar alle rettene som ennå ikke er handlet inn. Varer som
+allerede står på lista hoppes over, og de som legges til registreres som et kjøp — slik lærer
+forslagene også av det du planlegger å lage.
+
+---
+
 ## Kom i gang
 
 ```bash
 npm install
 npm run dev        # utviklingsserver
-npm test           # 83 tester for parsing, kategorisering, forslag og widgetene
+npm test           # 106 tester for parsing, kategorisering, forslag, matplan og widgetene
 npm run build      # produksjonsbygg til dist/
 npm run preview    # se på produksjonsbygget lokalt
 ```
@@ -221,11 +242,14 @@ src/
     store.ts          Tilstand og handlinger, med angring
     demo.ts           Eksempeldata
     widget.ts         Mater hjemskjerm-widgeten på Android
+    meals.ts          Uker, datoer og ukenummer til matplanleggeren
   ui/
     ListView.tsx      Lista, gruppert etter kategori
     SuggestionsView.tsx
     InsightsView.tsx
     SettingsView.tsx
+    MealPlanView.tsx  Ukekalenderen med rettene
+    RecipeSheet.tsx   Rediger én rett: ingredienser og tilbehør
     WidgetView.tsx
     Composer.tsx      Hurtiginput med autofullføring
     EntrySheet.tsx    Detaljer for én vare
@@ -254,7 +278,6 @@ Ting som passer å bygge videre på, i den rekkefølgen de trolig gir mest:
 - **Flere lister** (Hjem, Hytta, Fest) med hurtigbytte i toppen.
 - **Deling mellom husstandsmedlemmer** — krever en liten synk-tjeneste, og bør være valgfritt
   slik at lokal bruk fortsatt er standard.
-- **Oppskrifter** som legger inn alle ingrediensene med ett trykk.
 - **Strekkodeskanning** for å legge til varer i butikken.
 - **Sesongjustering** av forslagene (grillmat om sommeren, klementiner i desember).
 - **Skrive inn nye varer fra widgeten** — kjente varer kan plukkes fra kategoriene, men helt

@@ -1,7 +1,8 @@
 import { guessCategory, normalize } from './categories.ts';
+import { isoDate } from './meals.ts';
 import { DEFAULT_SETTINGS } from './storage.ts';
 import { DAY } from './suggestions.ts';
-import type { AppState, CatalogItem, Trip } from './types.ts';
+import type { AppState, CatalogItem, PlannedMeal, Recipe, RecipeItem, Trip } from './types.ts';
 
 /** [navn, dager mellom hvert kjøp, antall kjøp, dager siden sist] */
 const SEED: Array<[string, number, number, number]> = [
@@ -62,11 +63,47 @@ export function demoState(now = Date.now()): AppState {
     })),
   }));
 
+  // Et par retter, så matplanen har noe å vise fra første stund.
+  const find = (navn: string) => items.find((item) => item.key === normalize(navn));
+  const recipes: Recipe[] = [
+    {
+      id: 'demo-rett-1',
+      name: 'Kyllingwok',
+      key: 'kyllingwok',
+      items: ([
+        { itemId: find('Kyllingfilet')?.id ?? '', part: 'ingrediens' },
+        { itemId: find('Gulrøtter')?.id ?? '', part: 'ingrediens' },
+        { itemId: find('Tomater')?.id ?? '', part: 'tilbehor' },
+      ] as RecipeItem[]).filter((entry) => entry.itemId !== ''),
+      createdAt: now - 30 * DAY,
+      timesPlanned: 4,
+    },
+    {
+      id: 'demo-rett-2',
+      name: 'Vafler',
+      key: 'vafler',
+      items: ([
+        { itemId: find('Egg')?.id ?? '', part: 'ingrediens' },
+        { itemId: find('Lettmelk')?.id ?? '', part: 'ingrediens' },
+        { itemId: find('Smør')?.id ?? '', part: 'tilbehor' },
+      ] as RecipeItem[]).filter((entry) => entry.itemId !== ''),
+      createdAt: now - 20 * DAY,
+      timesPlanned: 2,
+    },
+  ];
+
+  const meals: PlannedMeal[] = [
+    { id: 'demo-maltid-1', date: isoDate(now), recipeId: 'demo-rett-1' },
+    { id: 'demo-maltid-2', date: isoDate(now + 2 * DAY), recipeId: 'demo-rett-2' },
+  ];
+
   return {
     version: 1,
     items,
     list: [],
     trips,
+    recipes,
+    meals,
     settings: { ...DEFAULT_SETTINGS },
   };
 }

@@ -36,6 +36,15 @@ export function IconSpark({ size = 22 }: IconProps) {
   );
 }
 
+export function IconMeal({ size = 22 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <circle cx="12" cy="12" r="8.4" />
+      <circle cx="12" cy="12" r="3.6" />
+    </svg>
+  );
+}
+
 export function IconChart({ size = 22 }: IconProps) {
   return (
     <svg {...base(size)}>
@@ -122,8 +131,11 @@ export function IconClose({ size = 20 }: IconProps) {
   );
 }
 
-export function IconChevron({ size = 18, dir = 'right' }: IconProps & { dir?: 'right' | 'up' | 'down' }) {
-  const rotate = dir === 'up' ? -90 : dir === 'down' ? 90 : 0;
+export function IconChevron({
+  size = 18,
+  dir = 'right',
+}: IconProps & { dir?: 'right' | 'left' | 'up' | 'down' }) {
+  const rotate = dir === 'up' ? -90 : dir === 'down' ? 90 : dir === 'left' ? 180 : 0;
   return (
     <svg {...base(size)} style={{ transform: `rotate(${rotate}deg)` }}>
       <path d="M9.5 5.5L16 12l-6.5 6.5" />
