@@ -486,7 +486,7 @@ export const actions = {
     if (recipe.items.some((entry) => entry.itemId === item.id)) return;
 
     const entry: RecipeItem = { itemId: item.id, part };
-    if (parsed.qty > 1) entry.qty = parsed.qty;
+    if (parsed.qty !== 1) entry.qty = parsed.qty;
     if (parsed.unit ?? item.unit) entry.unit = parsed.unit ?? item.unit;
 
     commit(
