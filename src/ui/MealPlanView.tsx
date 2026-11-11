@@ -184,6 +184,7 @@ export function MealPlanView() {
 
       {openRecipe && (
         <RecipeSheet
+          key={openRecipe.recipeId}
           recipeId={openRecipe.recipeId}
           mealId={openRecipe.mealId}
           onClose={() => setOpenRecipe(null)}
