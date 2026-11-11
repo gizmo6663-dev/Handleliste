@@ -49,7 +49,7 @@ export interface CatalogItem {
   createdAt: number;
 }
 
-export type EntrySource = 'manuell' | 'forslag' | 'favoritt' | 'gjentakelse';
+export type EntrySource = 'manuell' | 'forslag' | 'favoritt' | 'gjentakelse' | 'matplan';
 
 /** En linje i den aktive handlelista. */
 export interface ListEntry {

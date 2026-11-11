@@ -628,7 +628,7 @@ export const actions = {
         qty: entry.qty ?? item.defaultQty ?? 1,
         checked: false,
         addedAt: now,
-        source: 'gjentakelse',
+        source: 'matplan',
       };
       if (entry.unit ?? item.unit) listEntry.unit = entry.unit ?? item.unit;
       entries.push(listEntry);

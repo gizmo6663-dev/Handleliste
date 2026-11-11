@@ -272,9 +272,10 @@ function Row({ entry, item, onOpen }: RowProps) {
 
       <button type="button" className="row-main" onClick={onOpen}>
         <span className="row-name">{item.name}</span>
-        {(meta.length > 0 || entry.source === 'forslag') && (
+        {(meta.length > 0 || entry.source === 'forslag' || entry.source === 'matplan') && (
           <span className="row-meta">
             {entry.source === 'forslag' && <span className="row-source">foreslått</span>}
+            {entry.source === 'matplan' && <span className="row-source">fra menyen</span>}
             {meta.join(' · ')}
           </span>
         )}
